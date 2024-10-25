@@ -1,0 +1,2 @@
+include pyobject/images/*
+include pyobject/test/*
