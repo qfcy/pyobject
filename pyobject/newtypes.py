@@ -2,8 +2,8 @@ import sys
 from copy import deepcopy
 from math import inf
 
-NoneType=None.__class__
-class NewNoneType():
+NoneType=type(None)
+class NewNoneType:
     """A new None type designed to replace any objects with practical functionality.
 Compared to Python's built-in NoneType, this type can do anything.
 It can be added, subtracted, multiplied, called, etc, \
@@ -32,98 +32,98 @@ False
 True
 >>> none==None
 True"""
-    def __add__(self,other):
-        return other
-    def __bool__(self):
-        return False
+    def __init__(self):
+        self.__items={}
     def __call__(self,*args,**kwargs):
-        return self
-    def __eq__(self,other):
-        availbles=(self, NewNoneType, None, NoneType, 0, '')
-        for availble in availbles:
-            if other is availble:return True
-        return False
-    def __ge__(self,value):
-        return value<=0
+        return type(self)() # 复制一份自身
     def __getattr__(self,name):
-        return self
-    def __gt__(self,value):
-        return value<0
-    def __le__(self,value):
-        return value>=0
-    def __lt__(self,value):
-        return value>0
-    def __str__(self):
-        return self.__class__.__name__
-    def __repr__(self):
-        return ''
-    def __sub__(self,value):
-        return -value
-    def __neg__(self):
-        return self
+        return type(self)()
     def __setattr__(self,name,value):
         self.__dict__[name]=value
-        return self
-
-class Infinity():
-    """A fake infinity type.
-Examples:
->>> inf=Infinity()
->>> inf
-Infinity()
->>> print(inf)
-∞
->>> print(-inf)
--∞
->>> float(inf)
-inf
->>> inf==float(inf)
-True
->>> -inf
--Infinity()
->>> inf>1e308
-True
->>> inf<1e308
-False
->>> inf>=1e308
-True
->>> inf<=1e308
-False
->>> -inf==-float(inf)
-True
->>> -inf>0
-False
->>> -inf<0
-True
->>> -inf>=0
-False
->>> -inf<=0
-True
-    """
-    def __init__(self,neg=False):
-        self.neg=neg
-    def __eq__(self,value):
-        return value is self or value==float(self)
-    def __float__(self):
-        return -inf if self.neg else inf
-    def __ge__(self,value):
-        # self>=value
-        return not self.neg
-    def __gt__(self,value):
-        # self>value
-        return not self<=value
-    def __le__(self,value):
-        # self<=value
-        return (not self==value) if self.neg else (self==value)
-    def __lt__(self,value):
-        # self<value
-        return self.neg
-    def __neg__(self):
-        return Infinity(neg=(not self.neg))
     def __str__(self):
-        return ('-' if self.neg else '')+'∞'
+        return type(self).__name__
     def __repr__(self):
-        return "%sInfinity()"%('-' if self.neg else '')
+        return ""
+
+    def __eq__(self,other):
+        if isinstance(other,NewNoneType):
+            return other.__dict__==self.__dict__ and \
+                   other.__items==self.__items
+        availbles=(None, 0, "")
+        for availble in availbles:
+            if other == availble:return True
+        return False
+    def __ne__(self,other):
+        return not self == other
+    def __ge__(self,other):
+        return other<=0
+    def __gt__(self,other):
+        return other<0
+    def __le__(self,other):
+        return other>=0
+    def __lt__(self,other):
+        return other>0
+
+    def __add__(self,other):
+        return other
+    def __sub__(self,other):
+        return -other
+    def __mul__(self,other):
+        return type(self)()
+    def __truediv__(self,other):
+        if other==0:raise ZeroDivisionError
+        return type(self)()
+    def __floordiv__(self,other):
+        if other==0:raise ZeroDivisionError
+        return type(self)()
+    def __mod__(self, other):
+        if other==0:raise ZeroDivisionError
+        return type(self)()
+    def __pow__(self, other):return 0 ** other
+    def __lshift__(self, other):return type(self)()
+    def __rshift__(self, other):return type(self)()
+    def __and__(self, other):return other
+    def __xor__(self, other):return other
+    def __or__(self, other):return other
+
+    def __radd__(self,other):
+        return other
+    def __rsub__(self,other):
+        return -other
+    def __rmul__(self,other):
+        return type(self)()
+    def __rtruediv__(self,other):raise ZeroDivisionError
+    def __rfloordiv__(self,other):raise ZeroDivisionError
+    def __rmod__(self, other):raise ZeroDivisionError
+    def __rpow__(self, other):return other ** 0
+    def __rlshift__(self, other):return other
+    def __rrshift__(self, other):return other
+    def __rand__(self, other):return other
+    def __rxor__(self, other):return other
+    def __ror__(self, other):return other
+
+    def __neg__(self):return type(self)()
+    def __abs__(self):return type(self)()
+    def __invert__(self):return ~0
+
+    def __int__(self):return 0
+    def __float__(self):return 0.0
+    def __complex__(self):return complex(0)
+    def __bool__(self):return False
+
+    def __len__(self): return len(self.__items)
+    def __getitem__(self, key): return self.__items[key]
+    def __setitem__(self, key, value): self.__items[key]=value
+    def __delitem__(self, key): del self.__items[key]
+    def __iter__(self):return iter(self.__items)
+    def __contains__(self, item):return False
+    def __hash__(self):
+        if self.__dict__ or self.__items:
+            raise ValueError("use hash() after modifying a newNoneType object")
+        return 0
+
+    def __enter__(self): pass
+    def __exit__(self, exc_type, exc_value, traceback): pass
 
 class ObjDict:
     "A fake dictionary based on an object's attibutes."

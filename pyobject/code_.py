@@ -144,7 +144,11 @@ The code argument can be either Code or the built-in CodeType."""
         globals_ = globals_ or default
         if not locals_:locals_ = default.copy()
         return eval(self._code,globals_,locals_)
+    def copy(self):
+        return Code(self)
     def __getattr__(self,name):
+        if _is_py310 and name=="co_lnotab":
+            name=co_linetable # 兼容旧版本
         _args=object.__getattribute__(self,'_args')
         if name in _args:
             return _args[name]
@@ -155,10 +159,12 @@ The code argument can be either Code or the built-in CodeType."""
                 # 调用super()耗时较大, 因此改用object
                 return object.__getattribute__(self,name)
     def __setattr__(self,name,value):
+        if _is_py310 and name=="co_lnotab":
+            name="co_linetable"
         if name not in self._args:
             return object.__setattr__(self,name,value)
         if not isinstance(value,self._arg_types[name]):
-            raise TypeError("Illegal attribute %s" % name)
+            raise AttributeError("Illegal attribute %s" % name)
         self._args[name]=value
         self._update_code()
     def __dir__(self):
@@ -175,6 +181,25 @@ The code argument can be either Code or the built-in CodeType."""
                 del state[key]
         self._args.update(state)
         self._update_code()
+
+    def get_flags(self): # 解析co_flags属性
+        names = [];flags=self.co_flags
+        for i in range(32):
+            flag = 1<<i
+            if flags & flag:
+                names.append(dis.COMPILER_FLAG_NAMES.get(flag, hex(flag)))
+                flags ^= flag
+                if not flags:break
+        else:
+            names.append(hex(flags))
+        return names
+    def get_sub_code(self,name): # 获取代码中的子代码，如函数、类定义等
+        for const in self.co_consts:
+            if isinstance(const,CodeType) and \
+                const.co_name==name:
+                return Code(const)
+        raise ValueError("%s not found in co_consts" % name)
+
     @classmethod
     def fromfunc(cls,function):
         "Create a Code instance from a function object."
@@ -187,12 +212,19 @@ The code argument can be either Code or the built-in CodeType."""
     def to_code(self):
         "Convert the code object to a built-in CodeType."
         return self._code
-    def to_func(self,globals_=None,name=''):
+    def to_func(self,globals_=None,name=None,
+                argdefs=None,closure=None,kwdefaults=None):
         "Convert the code object to a function."
+        if kwdefaults is not None and sys.version_info.minor<13:
+            raise ValueError("kwdefaults is not supported below 3.13")
         if globals_ is None:
-            # 默认的全局命名空间包含内置函数
+            # 默认的全局命名空间，包含内置函数
             globals_={"__builtins__":builtins}
-        return FunctionType(self._code,globals_,name)
+        if name is None:name=self.co_name
+        if sys.version_info.minor>=13:
+            return FunctionType(self._code,globals_,name,argdefs,closure,kwdefaults)
+        else:
+            return FunctionType(self._code,globals_,name,argdefs,closure)
     def to_pycfile(self,filename):
         "Dump the code object into a .pyc file using marshal."
         with open(filename,'wb') as f:
