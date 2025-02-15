@@ -1,11 +1,11 @@
-Metadata-Version: 2.1
+Metadata-Version: 2.2
 Name: pyobject
-Version: 1.2.5
+Version: 1.2.6
 Summary: 一个提供操作Python对象底层工具的模块。A utility tool with some submodules for operating internal python objects.
 Home-page: https://github.com/qfcy/pyobject
-Author: qfcy qq:3076711200
+Author: qfcy
 Author-email: 3076711200@qq.com
-Keywords: pyobject,python,object,utility,object browser,bytecode,对象,字节码,面向对象编程,对象浏览器
+Keywords: pyobject,python,object,utility,object browser,bytecode,reflect,object search,OOP,对象,字节码,对象浏览器
 Classifier: Programming Language :: Python
 Classifier: Natural Language :: Chinese (Simplified)
 Classifier: Topic :: Utilities
@@ -14,23 +14,33 @@ Classifier: Topic :: Software Development :: Debuggers
 Classifier: Topic :: Software Development :: Testing
 Classifier: Topic :: Software Development :: Libraries :: Python Modules
 License-File: LICENSE
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: description
+Dynamic: home-page
+Dynamic: keywords
+Dynamic: summary
 
-pyobject - 一个提供操作Python对象底层工具的Python包, 包含一些子模块。A utility tool with some submodules for operating internal python objects.
+pyobject - 一个提供操作Python对象底层工具的Python包, 包含一些子模块，支持几乎所有Python 3版本。
+A utility tool featuring several submodules for managing internal Python objects, compatible with nearly all Python 3 versions.
 
 **The English introduction is shown below the Chinese version.**
 
 所包含模块:
 =====================
 
-pyobject.__init__ - 显示和输出Python对象的各个属性值
+pyobject.\_\_init\_\_ - 显示和输出Python对象的各个属性值
 
-pyobject.browser - 以图形界面浏览Python对象
+pyobject.browser - 调用tkinter，浏览Python对象的图形界面
 
 pyobject.code\_ - Python 字节码(bytecode)的操作工具
 
 pyobject.search - 以一个起始对象为起点，查找和搜索能到达的所有python对象
 
 pyobject.newtypes - 定义一些新的类型 (实验性)
+
+pyobject.super_reflect - 实现记录动态反射 (正在开发中)
 
 pyobj_extension - C扩展模块, 提供操作Python对象底层的函数
 
@@ -39,7 +49,7 @@ pyobj_extension - C扩展模块, 提供操作Python对象底层的函数
 
 describe(obj, level=0, maxlevel=1, tab=4, verbose=False, file=sys.stdout)::
 
-    "描述"一个对象,即打印出对象的各个属性。
+    "描述"一个对象,即打印出对象的各个属性。（别名为``desc``）
     参数说明:
     maxlevel:打印对象属性的层数。
     tab:缩进的空格数,默认为4。
@@ -48,12 +58,12 @@ describe(obj, level=0, maxlevel=1, tab=4, verbose=False, file=sys.stdout)::
 
 browse(object, verbose=False, name='obj')::
 
-    以图形方式浏览一个Python对象。
+    调用tkinter，以图形浏览一个Python对象。
     verbose:与describe相同,是否打印出对象的特殊方法(如__init__)
 
 函数browse()的图形界面如下所示 (中文界面的版本可在模块目录内的test/browser_chs_locale.py中找到)：
 
-.. image:: https://img-blog.csdnimg.cn/direct/3226cebc991a467f9844a1bafda9209d.png
+.. image:: https://i-blog.csdnimg.cn/blog_migrate/3d67b32633815a54c8c9d0c370248318.png
     :alt: browse函数界面图片
 
 objectname(obj)::
@@ -80,19 +90,98 @@ make_iter(start_obj, recursions=2, all=False)::
 
     功能、参数与make_list相同, 但创建迭代器, 且迭代器中可能有重复的对象。
 
-search(obj, start, recursions=3)::
+search(obj, start, recursions=3, search_str=False)::
 
-    从一个起点开始搜索对象
+    从一个起点开始搜索对象，如``search(os,sys,3)``返回``["sys.modules['site'].os", "sys.modules['os']", ...]``的结果。
     obj:待搜索的对象
     start:起点对象
     recursion:递归次数
+    search_str: 是否是查找字符串子串
+
 
 类: ``pyobject.Code``
 ========================
 
-类Code用于包装Python字节码对象(bytecode)，提供一个便利操作Python字节码的接口。
+类Code提供了Python字节码(bytecode)对象的封装，便于操作Python字节码。
 
-Python底层的bytecode对象，如func.__code__，是不可变的，鉴于此，Code类提供了一个可变的字节码对象，以及一系列操作字节码的函数，使得操作底层字节码对象变得更容易。
+Python内部的字节码对象``CodeType``，如``func.__code__``，是不可变的，这里的Code类提供了一个**可变**的字节码对象，以及一系列方法，使得操作底层字节码变得更容易。
+
+此外和Java字节码不同，Python字节码是**不跨版本**的，不同版本Python解释器的字节码互不兼容，
+
+而Code类提供了字节码的**通用接口**，支持**3.4至3.14**之间的所有Python版本（甚至PyPy的.pyc格式），简化了复杂的版本兼容性问题。
+
+初始化
+--------------
+`Code` 类可以使用现有的 ``CodeType`` 对象或另一个 ``Code`` 实例进行初始化。如果未提供参数，则会创建一个默认的 ``CodeType`` 对象。
+
+```python
+def __init__(self, code=None)
+```
+
+属性
+----------
+
+- ``_code``: 当前Code对象的内部字节码，如应使用``exec(c._code)``或``exec(c.to_code())``，而不是直接使用``exec(c)``。
+
+以下是Python内置字节码的属性（也是``Code``对象的属性）。Python内部的字节码``CodeType``是不可变的，这些属性只读，但``Code``对象可变，也就是这些属性都**可修改**:
+
+- ``co_argcount``: 位置参数的数量（包括有默认值的参数）。
+- ``co_cellvars``: 一个包含被嵌套函数所引用的局部变量名称的元组。
+- ``co_code``: 一个表示字节码指令序列的``bytes``类型，存放真正的二进制字节码。
+- ``co_consts``: 一个包含字节码所使用的字面值的元组。
+- ``co_filename``: 被编码代码所在的文件名。
+- ``co_firstlineno``: 字节码对应到源文件首行的行号，在解释器内部和``co_lnotab``结合使用，用来在Traceback中输出精确的行号。
+- ``co_flags``: 一个以整数编码表示的多个解释器所用的旗标。
+- ``co_freevars``: 一个包含自由变量名称的元组。
+- ``co_kwonlyargcount``: 仅关键字参数的数量。
+- ``co_lnotab``: 一个以编码表示的从字节码偏移量到行号的映射的字符串（Python 3.10开始，被``co_linetable``替代）。
+- ``co_name``: 字节码对应的函数/类名称。
+- ``co_names``: 一个包含字节码所使用的名称的元组。
+- ``co_nlocals``: 函数使用的局部变量数量（包括参数）。
+- ``co_stacksize``: 执行字节码需要的栈大小。
+- ``co_varnames``: 一个包括局部变量名称的元组（以参数名打头）。
+
+3.8及以上版本新增的属性:
+
+- ``co_posonlyargcount``:  仅位置参数的数量，在Python 3.8引入。
+- ``co_linetable``: 行号映射数据，从3.10开始作为``co_lnotab``属性的替代。
+- ``co_exceptiontable``: 异常表数据，Python 3.11引入。
+- ``co_qualname``: 字节码的全名，Python 3.11引入。
+
+方法
+-------
+### 主要方法
+- ``exec(globals_=None, locals_=None)``：在全局和局部作用域字典中执行代码对象。
+- ``eval(globals_=None, locals_=None)``：在全局和局部作用域字典中执行代码对象，并获取返回值。
+- ``copy()``：复制一份``Code``对象，返回复制的副本。
+- ``to_code()``：将 ``Code`` 实例转换回内置的 ``CodeType`` 对象，和``c._code``相同。
+- ``to_func(globals_=None, name=None, argdefs=None, closure=None, kwdefaults=None)``：将代码对象转换为 Python 函数，参数用法和Python内置``FunctionTypes``实例化的参数相同。
+- ``get_flags()``：返回 ``co_flags`` 属性的标志名称列表，如``["NOFREE"]``。
+- ``get_sub_code(name)``：搜索代码的``co_consts``中的子代码，如函数、类定义等，不会递归搜索。返回搜索到的``Code``对象，未找到时抛出``ValueError``。
+
+### 序列化
+- ``to_pycfile(filename)``：使用 ``marshal`` 模块将代码对象转储到 ``.pyc`` 文件中。
+- ``from_pycfile(filename)``：从 ``.pyc`` 文件创建 ``Code`` 实例。
+- ``from_file(filename)``：从 ``.py`` 或 ``.pyc`` 文件创建 ``Code`` 实例。
+- ``pickle(filename)``：将 ``Code`` 对象序列化为 pickle 文件。
+
+### 调试和检查
+
+- ``show(*args, **kw)``：在内部调用``pyobject.desc``，显示代码对象的属性，参数用法和``desc()``的用法相同。
+- ``info()``：在内部调用``dis.show_code``，显示字节码的基本信息。
+- ``dis(*args, **kw)``：调用 ``dis`` 模块输出字节码的反汇编，和``dis.dis(c.to_code())``相同。
+- ``decompile(version=None, *args, **kw)``：调用 ``uncompyle6`` 库将代码对象反编译为源代码。（安装``pyobject``库时， ``uncompyle6`` 库是可选的。）
+
+### 工厂函数
+
+- ``fromfunc(function)``：从 Python 函数对象创建 ``Code`` 实例，和``Code(func.__code__)``相同。
+- ``fromstring(string, mode='exec', filename='')``：从源代码字符串创建 ``Code`` 实例，参数用法和``compile``内置函数相同，在内部调用``compile()``。
+
+兼容性细节
+--------------------
+
+- 属性`co_lnotab`：在3.10以上的版本中，如果尝试设置``co_lnotab``属性，会自动转换成设置``co_linetable``。
+
 
 示例用法\: (从模块的doctest中摘取)::
 
@@ -104,15 +193,17 @@ Python底层的bytecode对象，如func.__code__，是不可变的，鉴于此�
     >>> c.exec()
     Hello World!
     >>>
+    >>> # 保存到 pickle 文件
     >>> import os,pickle
     >>> temp=os.getenv('temp')
     >>> with open(os.path.join(temp,"temp.pkl"),'wb') as f:
     ...     pickle.dump(c,f)
     ...
+    >>> # 读取pickle文件，并重新执行读取到的字节码
     >>> f=open(os.path.join(temp,"temp.pkl"),'rb')
     >>> pickle.load(f).to_func()()
     Hello World!
-    >>>
+    >>> # 转换为pyc文件，并导入pyc模块
     >>> c.to_pycfile(os.path.join(temp,"temppyc.pyc"))
     >>> sys.path.append(temp)
     >>> import temppyc
@@ -132,7 +223,7 @@ convptr(pointer)::
 
 py_decref(object, n)::
 
-	将对象的引用计数减小1。
+    将对象的引用计数减小1。
 
 py_incref(object, n)::
 
@@ -140,13 +231,17 @@ py_incref(object, n)::
 
 getrealrefcount(obj)::
 
-    获取调用本函数前对象的实际引用计数。和sys.getrefcount()不同，不考虑调用时新增的引用计数。
+    获取调用本函数前对象的实际引用计数。和sys.getrefcount()不同，不考虑调用时新增的引用计数。(差值为``_REFCNT_DELTA``这个常量)
     如：getrealrefcount([])会返回0，因为退出getrealrefcount后列表[]不再被任何对象引用，而sys.getrefcount([])会返回1。
     另外，a=[];getrealrefcount(a)会返回1而不是2。
 
 setrefcount(obj, n)::
 
     设置对象的实际引用计数(调用函数前)为n，和getrealrefcount()相反，同样不考虑调用时新增的引用计数。
+
+getrefcount_nogil(obj)和setrefcount_nogil(obj,ref_data)::
+
+    在Python 3.14+的无GIL版本中获取和设置引用计数，``ref_data``为``(ob_ref_local, ob_ref_shared)``，不考虑调用时新增的引用计数。(实验性)
 
 *警告: 不恰当地调用这些函数可能导致Python崩溃。*
 
@@ -156,18 +251,44 @@ list_in(obj, lst)::
     本函数直接比较对象的指针，提高了效率。
 
 
+版本: 1.2.6
+
+更新日志:
+
+2025-2-15(v1.2.6):修复了pyobject.browser浏览过大对象的卡顿问题，改进了pyobject.code_模块，新增了正在开发中的反射库pyobject.super_reflect，
+在pyobj_extension新增了``getrefcount_nogil``和``setrefcount_nogil``。
+
+2024-10-24(v1.2.5):修复了pyobject.browser在Windows下的高DPI支持，修改了pyobj_extension模块，以及其他改进。
+
+2024-8-12(v1.2.4):针对pyobject.code_增加了对3.10及以上版本的支持；进一步优化了search模块的搜索性能，以及一些其他修复和改进。
+
+2024-6-20(v1.2.3):更新了包内test目录下的.pyc文件加壳工具，并更新了pyobject.browser中的对象浏览器，添加了显示列表和字典项，后退、前进、刷新页面，以及新增、编辑和删除项等新特性。
+
+2022-7-25(v1.2.2):增加了操作Python底层对象引用, 以及对象指针的C语言模块pyobj_extension。
+
+2022-2-2(v1.2.0):修复了一些bug,优化了search模块的性能; code_中增加了Code类, browser中增加编辑属性功能, 增加了Code类的doctest。
+
+源码:见 https://github.com/qfcy/pyobject
+
+作者: `qfcy <https://github.com/qfcy>`_ qq:3076711200
+
+作者CSDN主页: https://blog.csdn.net/qfcy\_/
+
+
 Submodules:
 ===========
 
-pyobject.__init__ - Displays and outputs attribute values of Python objects.
+pyobject.\_\_init\_\_ - Displays and outputs attribute values of Python objects.
 
-pyobject.browser - Provides a visual interface to browse Python objects.
+pyobject.browser - Provides a visual interface to browse Python objects using tkinter.
 
 pyobject.code\_ - Provides tools for manipulating Python native bytecode.
 
 pyobject.search - Implements the utility for locating the path to a specific object.
 
-pyobject.newtypes - Defines a few new types. (Experimental)
+pyobject.newtypes - Defines a few new types. (experimental)
+
+pyobject.super_reflect - Implements dynamic reflection logging (in development)
 
 pyobj_extension - A C extension module offering functions to manipulate low-level Python objects.
 
@@ -176,7 +297,7 @@ Functions:
 
 describe(obj, level=0, maxlevel=1, tab=4, verbose=False, file=sys.stdout)::
 
-    "Describes" an object by printing its attributes.
+    "Describes" an object by printing its attributes. The alias is ``desc``.
     Parameters:
     - maxlevel: The depth of attribute levels to print.
     - tab: Number of spaces for indentation, default is 4.
@@ -185,12 +306,12 @@ describe(obj, level=0, maxlevel=1, tab=4, verbose=False, file=sys.stdout)::
 
 browse(object, verbose=False, name='obj')::
 
-    Graphically browse a Python object.
+    Graphically browse a Python object using tkinter.
     - verbose: Same as in describe, whether to print special methods.
 
 The graphical interface of the browse() function is shown below:
 
-.. image:: https://i-blog.csdnimg.cn/direct/2dc8cc8912354e75ad142696ec42a666.png
+.. image:: https://i-blog.csdnimg.cn/direct/c776cf8f1b5141d2bd0b0ade2feba9d2.png
     :alt: browse function interface image
 
 objectname(obj)::
@@ -217,19 +338,91 @@ make_iter(start_obj, recursions=2, all=False)::
 
     Similar to make_list, but creates an iterator, which may contain duplicates.
 
-search(obj, start, recursions=3)::
+search(obj, start, recursions=3, search_str=False)::
 
-    Searches for objects starting from a specified point.
+    Searches for objects starting from a specified starting point. For example, ``search(os, sys, 3)`` returns results like ``["sys.modules['site'].os", "sys.modules['os']", ...]``.
     - obj: The object to search for.
     - start: The starting object.
     - recursion: Number of recursions.
+    - search_str: Whether to search substrings within strings.
 
 Class: ``pyobject.Code``
 ========================
 
-The Code class wraps Python bytecode objects, providing a convenient interface for manipulation.
+The `Code` class provides a wrapper for Python bytecode objects, making it easier to manipulate Python bytecode.
 
-Python's underlying bytecode objects, such as func.__code__, are immutable. The Code class offers a mutable bytecode object and a suite of functions to manipulate bytecode, simplifying operations on these objects.
+Python's internal bytecode object, ``CodeType`` (e.g., ``func.__code__``), is immutable. The `Code` class offers a **mutable** bytecode object and a set of methods to simplify operations on the underlying bytecode.
+
+Unlike Java bytecode, Python bytecode is **not cross-version compatible**. Bytecode generated by different versions of the Python interpreter is incompatible.
+
+The `Code` class provides a **universal interface** for bytecode, supporting all Python versions from **3.4 to 3.14** (including PyPy's `.pyc` format), simplifying complex version compatibility issues.
+
+Initialization
+--------------
+The `Code` class can be initialized with an existing ``CodeType`` object or another ``Code`` instance. If no argument is provided, a default ``CodeType`` object is created.
+
+```python
+def __init__(self, code=None)
+```
+
+Attributes
+----------
+- ``_code``: The internal bytecode of the current `Code` object. Use ``exec(c._code)`` or ``exec(c.to_code())`` instead of directly using ``exec(c)``.
+
+The following are attributes of Python's built-in bytecode (also attributes of the `Code` object). While Python's internal ``CodeType`` bytecode is immutable and these attributes are read-only, the `Code` object is mutable, meaning these attributes can be **modified**:
+
+- ``co_argcount``: The number of positional arguments (including those with default values).
+- ``co_cellvars``: A tuple containing the names of local variables referenced by nested functions.
+- ``co_code``: A ``bytes`` object representing the sequence of bytecode instructions, storing the actual binary bytecode.
+- ``co_consts``: A tuple containing the literals used by the bytecode.
+- ``co_filename``: The filename of the source code being compiled.
+- ``co_firstlineno``: The first line number of the source code corresponding to the bytecode. Used internally by the interpreter in combination with ``co_lnotab`` to output precise line numbers in tracebacks.
+- ``co_flags``: An integer encoding multiple flags used by the interpreter.
+- ``co_freevars``: A tuple containing the names of free variables.
+- ``co_kwonlyargcount``: The number of keyword-only arguments.
+- ``co_lnotab``: A string encoding the mapping of bytecode offsets to line numbers (replaced by ``co_linetable`` in Python 3.10).
+- ``co_name``: The name of the function/class corresponding to the bytecode.
+- ``co_names``: A tuple containing the names used by the bytecode.
+- ``co_nlocals``: The number of local variables used by the function (including arguments).
+- ``co_stacksize``: The stack size required to execute the bytecode.
+- ``co_varnames``: A tuple containing the names of local variables (starting with argument names).
+
+Attributes introduced in Python 3.8 and later:
+- ``co_posonlyargcount``: The number of positional-only arguments, introduced in Python 3.8.
+- ``co_linetable``: Line number mapping data, introduced in Python 3.10 as a replacement for ``co_lnotab``.
+- ``co_exceptiontable``: Exception table data, introduced in Python 3.11.
+- ``co_qualname``: The qualified name of the bytecode, introduced in Python 3.11.
+
+Methods
+-------
+### Core Methods
+- ``exec(globals_=None, locals_=None)``: Executes the code object within the provided global and local scope dictionaries.
+- ``eval(globals_=None, locals_=None)``: Executes the code object within the provided global and local scope dictionaries and returns the result.
+- ``copy()``: Creates a copy of the `Code` object and returns the duplicate.
+- ``to_code()``: Converts the `Code` instance back to a built-in ``CodeType`` object, equivalent to ``c._code``.
+- ``to_func(globals_=None, name=None, argdefs=None, closure=None, kwdefaults=None)``: Converts the code object into a Python function. The parameters are the same as those used when instantiating Python's built-in ``FunctionType``.
+- ``get_flags()``: Returns a list of flag names for the ``co_flags`` attribute, e.g., ``["NOFREE"]``.
+- ``get_sub_code(name)``: Searches for sub-code objects (e.g., functions or class definitions) in the ``co_consts`` attribute. This method does not perform recursive searches. Returns the found `Code` object or raises a ``ValueError`` if not found.
+
+### Serialization
+- ``to_pycfile(filename)``: Dumps the code object into a `.pyc` file using the ``marshal`` module.
+- ``from_pycfile(filename)``: Creates a `Code` instance from a `.pyc` file.
+- ``from_file(filename)``: Creates a `Code` instance from a `.py` or `.pyc` file.
+- ``pickle(filename)``: Serializes the `Code` object into a pickle file.
+
+### Debugging and Inspection
+- ``show(*args, **kw)``: Internally calls ``pyobject.desc`` to display the attributes of the code object. The parameters are the same as those used in ``desc()``.
+- ``info()``: Internally calls ``dis.show_code`` to display basic information about the bytecode.
+- ``dis(*args, **kw)``: Calls the ``dis`` module to output the disassembly of the bytecode, equivalent to ``dis.dis(c.to_code())``.
+- ``decompile(version=None, *args, **kw)``: Calls the ``uncompyle6`` library to decompile the code object into source code. (The ``uncompyle6`` library is optional when installing the ``pyobject`` package.)
+
+### Factory Functions
+- ``fromfunc(function)``: Creates a `Code` instance from a Python function object, equivalent to ``Code(func.__code__)``.
+- ``fromstring(string, mode='exec', filename='')``: Creates a `Code` instance from a source code string. The parameters are the same as those used in the built-in ``compile`` function, which is called internally.
+
+Compatibility Details
+---------------------
+- Attribute ``co_lnotab``: In Python 3.10 and later, attempts to set the ``co_lnotab`` attribute will automatically be converted into setting the ``co_linetable`` attribute.
 
 Example usage: (excerpted from the module's doctest)::
 
@@ -241,15 +434,17 @@ Example usage: (excerpted from the module's doctest)::
     >>> c.exec()
     Hello World!
     >>>
+    >>> # Save to pickle files
     >>> import os,pickle
     >>> temp=os.getenv('temp')
     >>> with open(os.path.join(temp,"temp.pkl"),'wb') as f:
     ...     pickle.dump(c,f)
     ...
+    >>> # Execute bytecodes from pickle files
     >>> f=open(os.path.join(temp,"temp.pkl"),'rb')
     >>> pickle.load(f).to_func()()
     Hello World!
-    >>>
+    >>> # Convert to pyc files and import them
     >>> c.to_pycfile(os.path.join(temp,"temppyc.pyc"))
     >>> sys.path.append(temp)
     >>> import temppyc
@@ -277,7 +472,7 @@ py_incref(obj)::
 getrealrefcount(obj)::
 
     Get the actual reference count of the object before calling this function.
-    Unlike sys.getrefcount(), this function does not consider the additional reference count   that is created when the function is called.
+    Unlike sys.getrefcount(), this function does not consider the additional reference count that is created when the function is called. (The difference is the constant ``_REFCNT_DELTA``)
     For example, getrealrefcount([]) will return 0, because after exiting getrealrefcount, the list [] is no longer referenced by any object, whereas sys.getrefcount([]) will return 1.
     Additionally, a=[]; getrealrefcount(a) will return 1 instead of 2.
 
@@ -286,30 +481,39 @@ setrefcount(obj, n)::
     Set the actual reference count of the object (before calling the function) to n.
     This is the opposite of getrealrefcount() and also does not consider the additional reference count created when the function is called.
 
+getrefcount_nogil(obj) and setrefcount_nogil(obj, ref_data)::
+
+    In the GIL-free version of Python 3.14+, get and set reference counts, where ``ref_data`` is ``(ob_ref_local, ob_ref_shared)``, without considering the reference counts added during the call. (Experimental)
+
 *Warning: Improper use of these functions above may lead to crashes.*
 
 list_in(obj, lst)::
 
     Determine whether obj is in the sequence lst.
-	Compared to the built-in Python call "obj in lst" that invokes the "==" operator (__eq__) multiple times, this function directly compares the pointers to improve efficiency.
+    Compared to the built-in Python call "obj in lst" that invokes the "==" operator (__eq__) multiple times, this function directly compares the pointers to improve efficiency.
 
 
-版本 Version:1.2.5
+Version: 1.2.6
 
-更新日志:
+Change Log
+==========
 
-2024-10-24(v1.2.5):修复了pyobject.browser在Windows下的高DPI支持，修改了pyobj_extension模块，以及其他改进。
+2025-2-15 (v1.2.6): Fixed the lag issue when browsing large objects in ``pyobject.browser``, improved the ``pyobject.code_`` module, introduced a new reflection library
+ ``pyobject.super_reflect`` currently in development, and added ``getrefcount_nogil`` and ``setrefcount_nogil`` to the ``pyobj_extension`` module.
 
-2024-8-12(v1.2.4):针对pyobject.code_增加了对3.10及以上版本的支持；进一步优化了search模块的搜索性能，以及一些其他修复和改进。
+2024-10-24 (v1.2.5): Fixed high DPI support for ``pyobject.browser`` on Windows, modified the ``pyobj_extension`` module, along with other improvements.
 
-2024-6-20(v1.2.3):更新了包内test目录下的.pyc文件加壳工具，并更新了pyobject.browser中的对象浏览器，添加了显示列表和字典项，后退、前进、刷新页面，以及新增、编辑和删除项等新特性。
+2024-08-12 (v1.2.4): Added support for Python versions 3.10 and above in ``pyobject.code_``; further optimized search performance in the ``search`` module,
+ along with various other fixes and improvements.
 
-2022-7-25(v1.2.2):增加了操作Python底层对象引用, 以及对象指针的C语言模块pyobj_extension。
+2024-06-20 (v1.2.3): Updated the ``.pyc`` file packing tool in the ``test`` directory of the package, and enhanced the object browser in ``pyobject.browser``
+ with new features such as displaying lists and dictionary items, back, forward, refresh page options, as well as adding, editing, and deleting items.
 
-2022-2-2(v1.2.0):修复了一些bug,优化了search模块的性能; code_中增加了Code类, browser中增加编辑属性功能, 增加了Code类的doctest。
+2022-07-25 (v1.2.2): Added a C language module ``pyobj_extension`` for manipulating Python's underlying object references and object pointers.
 
-源码:见 https://github.com/qfcy/pyobject
+2022-02-02 (v1.2.0): Fixed several bugs and optimized the performance of the ``search`` module; added the ``Code`` class in ``code_``,
+ introduced editing properties functionality in ``browser``, and added doctests for the ``Code`` class.
 
-作者 Author: 七分诚意 qq:3076711200
+Source Code Repository: https://github.com/qfcy/pyobject
 
-作者CSDN主页: https://blog.csdn.net/qfcy\_/
+Author: `qfcy`_

@@ -1,8 +1,12 @@
-import pyobject,os
+import site,sys,os
 from setuptools import setup,Extension
 
-try:os.chdir(os.path.split(__file__)[0])
-except:pass
+try:
+    os.chdir(os.path.split(__file__)[0])
+    sys.path.append(os.getcwd())
+except Exception:pass
+sys.path.extend(site.getsitepackages()+[site.getusersitepackages()])
+import pyobject
 
 try:
     long_desc=open("README.rst",encoding="utf-8").read()
@@ -15,7 +19,7 @@ setup(
     description=pyobject.__doc__.replace('\n',''),
     long_description=long_desc,
     author=pyobject.__author__,
-    author_email=pyobject.__email__,
+    author_email="3076711200@qq.com",
     url="https://github.com/qfcy/pyobject",
     packages=['pyobject'],
     include_package_data=True,
@@ -23,7 +27,7 @@ setup(
         "pyobj_extension",["pyobject/pyobj_extension.c"]
     )],
     keywords=["pyobject","python","object","utility","object browser",
-        "bytecode","对象","字节码","面向对象编程","对象浏览器"
+        "bytecode","reflect","object search","OOP","对象","字节码","对象浏览器"
     ],
     classifiers=[
         'Programming Language :: Python',
