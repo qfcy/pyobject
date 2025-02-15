@@ -126,7 +126,9 @@ def __init__(self, code=None)
 
 方法
 -------
-### 主要方法
+
+**主要方法**
+
 - ``exec(globals_=None, locals_=None)``：在全局和局部作用域字典中执行代码对象。
 - ``eval(globals_=None, locals_=None)``：在全局和局部作用域字典中执行代码对象，并获取返回值。
 - ``copy()``：复制一份``Code``对象，返回复制的副本。
@@ -135,20 +137,21 @@ def __init__(self, code=None)
 - ``get_flags()``：返回 ``co_flags`` 属性的标志名称列表，如``["NOFREE"]``。
 - ``get_sub_code(name)``：搜索代码的``co_consts``中的子代码，如函数、类定义等，不会递归搜索。返回搜索到的``Code``对象，未找到时抛出``ValueError``。
 
-### 序列化
+**序列化**
+
 - ``to_pycfile(filename)``：使用 ``marshal`` 模块将代码对象转储到 ``.pyc`` 文件中。
 - ``from_pycfile(filename)``：从 ``.pyc`` 文件创建 ``Code`` 实例。
 - ``from_file(filename)``：从 ``.py`` 或 ``.pyc`` 文件创建 ``Code`` 实例。
 - ``pickle(filename)``：将 ``Code`` 对象序列化为 pickle 文件。
 
-### 调试和检查
+**调试和检查**
 
 - ``show(*args, **kw)``：在内部调用``pyobject.desc``，显示代码对象的属性，参数用法和``desc()``的用法相同。
 - ``info()``：在内部调用``dis.show_code``，显示字节码的基本信息。
 - ``dis(*args, **kw)``：调用 ``dis`` 模块输出字节码的反汇编，和``dis.dis(c.to_code())``相同。
 - ``decompile(version=None, *args, **kw)``：调用 ``uncompyle6`` 库将代码对象反编译为源代码。（安装``pyobject``库时， ``uncompyle6`` 库是可选的。）
 
-### 工厂函数
+**工厂函数**
 
 - ``fromfunc(function)``：从 Python 函数对象创建 ``Code`` 实例，和``Code(func.__code__)``相同。
 - ``fromstring(string, mode='exec', filename='')``：从源代码字符串创建 ``Code`` 实例，参数用法和``compile``内置函数相同，在内部调用``compile()``。
@@ -371,7 +374,9 @@ Attributes introduced in Python 3.8 and later:
 
 Methods
 -------
-### Core Methods
+
+**Core Methods**
+
 - ``exec(globals_=None, locals_=None)``: Executes the code object within the provided global and local scope dictionaries.
 - ``eval(globals_=None, locals_=None)``: Executes the code object within the provided global and local scope dictionaries and returns the result.
 - ``copy()``: Creates a copy of the `Code` object and returns the duplicate.
@@ -380,19 +385,22 @@ Methods
 - ``get_flags()``: Returns a list of flag names for the ``co_flags`` attribute, e.g., ``["NOFREE"]``.
 - ``get_sub_code(name)``: Searches for sub-code objects (e.g., functions or class definitions) in the ``co_consts`` attribute. This method does not perform recursive searches. Returns the found `Code` object or raises a ``ValueError`` if not found.
 
-### Serialization
+**Serialization**
+
 - ``to_pycfile(filename)``: Dumps the code object into a `.pyc` file using the ``marshal`` module.
 - ``from_pycfile(filename)``: Creates a `Code` instance from a `.pyc` file.
 - ``from_file(filename)``: Creates a `Code` instance from a `.py` or `.pyc` file.
 - ``pickle(filename)``: Serializes the `Code` object into a pickle file.
 
-### Debugging and Inspection
+**Debugging and Inspection**
+
 - ``show(*args, **kw)``: Internally calls ``pyobject.desc`` to display the attributes of the code object. The parameters are the same as those used in ``desc()``.
 - ``info()``: Internally calls ``dis.show_code`` to display basic information about the bytecode.
 - ``dis(*args, **kw)``: Calls the ``dis`` module to output the disassembly of the bytecode, equivalent to ``dis.dis(c.to_code())``.
 - ``decompile(version=None, *args, **kw)``: Calls the ``uncompyle6`` library to decompile the code object into source code. (The ``uncompyle6`` library is optional when installing the ``pyobject`` package.)
 
-### Factory Functions
+**Factory Functions**
+
 - ``fromfunc(function)``: Creates a `Code` instance from a Python function object, equivalent to ``Code(func.__code__)``.
 - ``fromstring(string, mode='exec', filename='')``: Creates a `Code` instance from a source code string. The parameters are the same as those used in the built-in ``compile`` function, which is called internally.
 
