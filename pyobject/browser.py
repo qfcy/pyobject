@@ -26,13 +26,9 @@ def isfunc(obj):
     if isfunction(obj) or ismethod(obj):return True
     # 使用typing而不用types.WrapperDescriptorType是为了与旧版本兼容
     func_types=[types.LambdaType,types.BuiltinFunctionType,
-                types.BuiltinMethodType,typing.WrapperDescriptorType,
-                typing.MethodWrapperType,typing.MethodDescriptorType]
-    if sys.version_info.minor>=7:
-        ClassMethodDescriptorType=types.ClassMethodDescriptorType
-    else: # 3.7之前的旧版本
-        ClassMethodDescriptorType=type(dict.__dict__['fromkeys'])
-    func_types.append(ClassMethodDescriptorType)
+                types.BuiltinMethodType,WrapperDescriptorType,
+                MethodWrapperType,MethodDescriptorType,
+                ClassMethodDescriptorType]
     for type_ in func_types:
         if isinstance(obj,type_):
             return True
