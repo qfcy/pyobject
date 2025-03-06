@@ -31,7 +31,6 @@ setup(
     ],
     classifiers=[
         'Programming Language :: Python',
-        "Natural Language :: Chinese (Simplified)",
         "Topic :: Utilities",
         "Topic :: Software Development :: Bug Tracking",
         "Topic :: Software Development :: Debuggers",

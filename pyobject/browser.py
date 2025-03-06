@@ -20,6 +20,9 @@ except ImportError:from __init__ import objectname,_shortrepr
 _IMAGE_PATH=os.path.join(os.path.split(__file__)[0],"images")
 SKIP=(WrapperDescriptorType, MethodWrapperType,\
      MethodDescriptorType, ClassMethodDescriptorType)
+TYPE_EXTRA_ATTRS = ("__basicsize__","__dictoffset__","__flags__",
+    "__itemsize__","__weakrefoffset__")
+TYPE_EXTRA_CLASS_ATTRS = ("__base__","__bases__","__mro__")
 
 def isfunc(obj):
     # 判断一个对象是否为函数或方法
@@ -219,15 +222,19 @@ class ObjectBrowser():
             self.tvw.item(self.functions_tag,open=True)
         # 添加属性
         attrs=dir(obj)
+        if isinstance(obj,type):
+            for attr in TYPE_EXTRA_ATTRS:
+                if hasattr(obj,attr):
+                    attrs.append(attr) # 对类添加额外的，一般不会出现在dir()的返回值的属性
         for i in range(len(attrs)):
             attr=attrs[i]
             if self.verbose or not attr.startswith("_"):
                 try:
-                    object=getattr(obj,attr)
-                    value=_shortrepr(object,self.MAX_VIEW_LEN)
-                    image=self._get_image(object)
-                    tags=("gray",) if isinstance(object,SKIP) else () # 将部分类型设为灰色，如MethodWrapperType
-                    self.tvw.insert(self._get_type(object), tk.END, #attr,
+                    object_=getattr(obj,attr)
+                    value=_shortrepr(object_,self.MAX_VIEW_LEN)
+                    image=self._get_image(object_)
+                    tags=("gray",) if isinstance(object_,SKIP) else () # 将部分类型设为灰色，如MethodWrapperType
+                    self.tvw.insert(self._get_type(object_), tk.END, #attr,
                                     text=attr, image=image,
                                     values=(value,),tags=tags) # values从第二列开始
                 except Exception as error: # 显示错误消息
@@ -235,20 +242,30 @@ class ObjectBrowser():
                     self.tvw.insert(self.attributes_tag, tk.END,
                                     text=attr, image=self.obj_image,
                                     values=(value,),tags=("error",))
-        # __bases__属性一般不会出现在dir()的返回值中
-        if hasattr(obj,"__bases__") and "__bases__" not in attrs:
-            bases=obj.__bases__
-            self.tvw.insert(self.classes_tag, tk.END, "__bases__",
-                            text="__bases__", image=self._get_image(bases),
-                            values=(repr(bases),))
+        # 添加类特有的属性 (不会在dir()出现)
+        if isinstance(obj,type):
+            for attr in TYPE_EXTRA_CLASS_ATTRS:
+                if not hasattr(obj,attr):continue
+                try:
+                    object_=getattr(obj,attr)
+                    value=_shortrepr(object_,self.MAX_VIEW_LEN)
+                    self.tvw.insert(self.classes_tag, tk.END,
+                                    text=attr, image=self._get_image(object_),
+                                    values=(value,))
+                except Exception as error: # 显示错误
+                    value='<{}: {}>'.format(type(error).__name__,str(error))
+                    self.tvw.insert(self.classes_tag, tk.END,
+                                    text=attr, image=self.obj_image,
+                                    values=(value,),tags=("error",))
+
         # 添加列表数据
         if isinstance(obj,(list,tuple)):
             for i in range(len(obj)):
                 index=str(i)
                 try:
-                    object=obj[i]
-                    value=_shortrepr(object,self.MAX_VIEW_LEN)
-                    image=self._get_image(object)
+                    object_=obj[i]
+                    value=_shortrepr(object_,self.MAX_VIEW_LEN)
+                    image=self._get_image(object_)
                     self.tvw.insert(self.lst_tag, tk.END,
                                     text=index, image=image,
                                     values=(value,))
@@ -263,9 +280,9 @@ class ObjectBrowser():
             for key in obj.keys():
                 key_name=repr(key)
                 try:
-                    object=obj[key]
-                    value=_shortrepr(object,self.MAX_VIEW_LEN)
-                    image=self._get_image(object)
+                    object_=obj[key]
+                    value=_shortrepr(object_,self.MAX_VIEW_LEN)
+                    image=self._get_image(object_)
                     self.tvw.insert(self.dict_tag, tk.END,
                                     text=key_name, image=image,
                                     values=(value,))
@@ -416,11 +433,11 @@ class ObjectBrowser():
             try:
                 # 对象的属性可能有改变，重新获取对象的属性
                 scope={self.rootobj_name:self.root_obj} # 获取第一个浏览的根对象及其名称
-                object=eval(path,scope)
+                object_=eval(path,scope)
             except Exception: # 默认使用新获取的对象，只有出错时，才使用旧的对象
-                object=obj
-        else:object=obj
-        self.browse(object,path)
+                object_=obj
+        else:object_=obj
+        self.browse(object_,path)
     def back(self): # 后退
         if self.history_index!=0:
             self.history_index-=1

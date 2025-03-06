@@ -230,9 +230,11 @@ list_in(obj, lst)::
     本函数直接比较对象的指针，提高了效率。
 
 
-版本: 1.2.6
+版本: 1.2.7
 
 更新日志:
+
+2025-3-6(v1.2.7):为pyobject.browser新增了``dir()``中不存在的类属性（如``__flags__``, ``__mro__``），修改了pyobj_extension模块。
 
 2025-2-15(v1.2.6):修复了pyobject.browser浏览过大对象的卡顿问题，改进了pyobject.code_模块，新增了正在开发中的反射库pyobject.super_reflect，
 在pyobj_extension新增了``getrefcount_nogil``和``setrefcount_nogil``。
@@ -477,10 +479,12 @@ list_in(obj, lst)::
     Compared to the built-in Python call "obj in lst" that invokes the "==" operator (__eq__) multiple times, this function directly compares the pointers to improve efficiency.
 
 
-Version: 1.2.6
+Version: 1.2.7
 
 Change Log
 ==========
+
+2025-3-6(v1.2.7): Added support for special class attributes excluded from ``dir()`` (such as ``__flags__``, ``__mro__``) in pyobject.browser and modified the pyobj_extension module.
 
 2025-2-15 (v1.2.6): Fixed the lag issue when browsing large objects in ``pyobject.browser``, improved the ``pyobject.code_`` module, introduced a new reflection library
  ``pyobject.super_reflect`` currently in development, and added ``getrefcount_nogil`` and ``setrefcount_nogil`` to the ``pyobj_extension`` module.

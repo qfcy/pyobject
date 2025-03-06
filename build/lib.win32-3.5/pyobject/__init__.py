@@ -6,7 +6,7 @@ from warnings import warn
 from pprint import pprint
 
 __author__="qfcy"
-__version__="1.2.6"
+__version__="1.2.7"
 
 _ignore_names=["__builtins__","__doc__"]
 __all__=["objectname","bases","describe","desc"]
@@ -15,7 +15,8 @@ def objectname(obj):
     """objectname(obj) - Returns the name of an object in the format xxmodule.xxclass.
 For example: objectname(int) -> 'builtins.int'."""
     if not obj.__class__==type:obj=obj.__class__
-    if obj.__module__=="__main__":return obj.__name__
+    if not hasattr(obj,"__module__") or obj.__module__=="__main__":
+        return obj.__name__
     return "{}.{}".format(obj.__module__,obj.__name__)
 
 ###无递归版本
@@ -106,7 +107,9 @@ except (ImportError,SystemError):warn("Failed to import pyobject.code_.")
 try:
     from pyobj_extension import *
     __all__.extend(["convptr","py_incref","py_decref","getrealrefcount",
-                    "setrefcount","list_in","getrefcount_nogil","setrefcount_nogil"])
+                    "setrefcount","list_in","getrefcount_nogil","setrefcount_nogil",
+                    "get_type_flag","set_type_flag","set_type_base","set_type_bases",
+                    "set_type_mro"])
 except ImportError:warn("Failed to import module pyobj_extension.")
 
 def test():

@@ -204,6 +204,67 @@ PyObject *_list_setnull(PyObject *self, PyObject *args) {
     Py_RETURN_NONE;
 }
 
+static PyObject* get_type_flag(PyObject *self, PyObject *args, PyObject *kwargs) {
+    static char *kwlist[] = {"typeobj", NULL};
+    PyObject *typeobj;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", kwlist, &typeobj))
+        return NULL;
+
+    PyTypeObject *type = (PyTypeObject *)typeobj;
+    unsigned long flags = type->tp_flags;
+    return PyLong_FromUnsignedLong(flags);
+}
+static PyObject* set_type_flag(PyObject *self, PyObject *args, PyObject *kwargs) {
+    static char *kwlist[] = {"typeobj", "flag", NULL};
+    PyObject *typeobj, *flag;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OO", kwlist, &typeobj, &flag))
+        return NULL;
+
+    unsigned long new_flag = PyLong_AsUnsignedLong(flag);
+    PyTypeObject *type = (PyTypeObject *)typeobj;
+    type->tp_flags = new_flag;
+    Py_RETURN_NONE;
+}
+
+static PyObject* set_type_base(PyObject *self, PyObject *args, PyObject *kwargs) {
+    static char *kwlist[] = {"typeobj", "base", NULL};
+    PyObject *typeobj, *base;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OO", kwlist, &typeobj, &base))
+        return NULL;
+
+    Py_INCREF(base);
+    PyTypeObject *type = (PyTypeObject *)typeobj;
+    type->tp_base = base;
+    Py_RETURN_NONE;
+}
+static PyObject* set_type_bases(PyObject *self, PyObject *args, PyObject *kwargs) {
+    static char *kwlist[] = {"typeobj", "bases", NULL};
+    PyObject *typeobj, *bases;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OO", kwlist, &typeobj, &bases))
+        return NULL;
+
+    Py_INCREF(bases);
+    PyTypeObject *type = (PyTypeObject *)typeobj;
+    type->tp_bases = bases;
+    Py_RETURN_NONE;
+}
+static PyObject* set_type_mro(PyObject *self, PyObject *args, PyObject *kwargs) {
+    static char *kwlist[] = {"typeobj", "mro", NULL};
+    PyObject *typeobj, *mro;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OO", kwlist, &typeobj, &mro))
+        return NULL;
+
+    Py_INCREF(mro);
+    PyTypeObject *type = (PyTypeObject *)typeobj;
+    type->tp_mro = mro;
+    Py_RETURN_NONE;
+}
+
 /*
  * List of functions to add to pyobj_extension in exec_pyobj_extension().
  */
@@ -216,7 +277,13 @@ static PyMethodDef pyobj_extension_functions[] = {
     { "getrefcount_nogil", (PyCFunction)getrefcount_nogil, METH_VARARGS, getrefcount_nogil_doc },
     { "setrefcount_nogil", (PyCFunction)setrefcount_nogil, METH_VARARGS | METH_KEYWORDS, setrefcount_nogil_doc },
     { "list_in", (PyCFunction)list_in, METH_VARARGS | METH_KEYWORDS, list_in_doc },
+
     { "_list_setnull", (PyCFunction)_list_setnull, METH_VARARGS, "_list_setnull(lst,index)"},
+    {"get_type_flag", (PyCFunction)get_type_flag, METH_VARARGS | METH_KEYWORDS, "get_type_flag(typeobj: type)"},
+    {"set_type_flag", (PyCFunction)set_type_flag, METH_VARARGS | METH_KEYWORDS, "set_type_flag(typeobj: type, flag: int)"},
+    {"set_type_base", (PyCFunction)set_type_base, METH_VARARGS | METH_KEYWORDS, "set_type_base(typeobj: type, base: type)"},
+    {"set_type_bases", (PyCFunction)set_type_bases, METH_VARARGS | METH_KEYWORDS, "set_type_bases(typeobj: type, bases: tuple)"},
+    {"set_type_mro", (PyCFunction)set_type_mro, METH_VARARGS | METH_KEYWORDS, "set_type_mro(typeobj: type, mro: tuple)"},
     { NULL, NULL, 0, NULL } /* marks end of array */
 };
 
@@ -227,7 +294,7 @@ static PyMethodDef pyobj_extension_functions[] = {
 int exec_pyobj_extension(PyObject *module) {
     PyModule_AddFunctions(module, pyobj_extension_functions);
     PyModule_AddStringConstant(module, "__author__", "qfcy");
-    PyModule_AddStringConstant(module, "__version__", "1.2.6");
+    PyModule_AddStringConstant(module, "__version__", "1.2.7");
     PyModule_AddIntConstant(module, "_REFCNT_DELTA", REFCNT_DELTA);
 
     return 0; /* success */
