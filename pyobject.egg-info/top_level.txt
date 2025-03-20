@@ -1,2 +1,0 @@
-pyobj_extension
-pyobject
