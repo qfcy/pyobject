@@ -6,7 +6,7 @@ from warnings import warn
 from pprint import pprint
 
 __author__="qfcy"
-__version__="1.2.7"
+__version__="1.2.7.3"
 
 _ignore_names=["__builtins__","__doc__"]
 __all__=["objectname","bases","describe","desc"]
@@ -109,7 +109,8 @@ try:
     __all__.extend(["convptr","py_incref","py_decref","getrealrefcount",
                     "setrefcount","list_in","getrefcount_nogil","setrefcount_nogil",
                     "get_type_flag","set_type_flag","set_type_base","set_type_bases",
-                    "set_type_mro"])
+                    "set_type_mro","get_type_subclasses","set_type_subclasses",
+                    "set_type_subclasses_by_cls"])
 except ImportError:warn("Failed to import module pyobj_extension.")
 
 def test():

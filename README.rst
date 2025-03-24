@@ -16,7 +16,7 @@ pyobject.search - 以一个起始对象为起点，查找和搜索能到达的�
 
 pyobject.newtypes - 定义一些新的类型 (实验性)
 
-pyobject.super_reflect - 实现记录动态反射 (正在开发中)
+pyobject.super_proxy - 实现记录动态反射的对象代理 (正在开发中)
 
 pyobj_extension - C扩展模块, 提供操作Python对象底层的函数
 
@@ -230,13 +230,13 @@ list_in(obj, lst)::
     本函数直接比较对象的指针，提高了效率。
 
 
-版本: 1.2.7
+版本: 1.2.7.3
 
 更新日志:
 
 2025-3-6(v1.2.7):为pyobject.browser新增了``dir()``中不存在的类属性（如``__flags__``, ``__mro__``），修改了pyobj_extension模块。
 
-2025-2-15(v1.2.6):修复了pyobject.browser浏览过大对象的卡顿问题，改进了pyobject.code_模块，新增了正在开发中的反射库pyobject.super_reflect，
+2025-2-15(v1.2.6):修复了pyobject.browser浏览过大对象的卡顿问题，改进了pyobject.code_模块，新增了正在开发中的反射库pyobject.super_proxy，
 在pyobj_extension新增了``getrefcount_nogil``和``setrefcount_nogil``。
 
 2024-10-24(v1.2.5):修复了pyobject.browser在Windows下的高DPI支持，修改了pyobj_extension模块，以及其他改进。
@@ -269,7 +269,7 @@ pyobject.search - Implements the utility for locating the path to a specific obj
 
 pyobject.newtypes - Defines a few new types. (experimental)
 
-pyobject.super_reflect - Implements dynamic reflection logging (in development)
+pyobject.super_proxy - Implements dynamic reflection proxy for objects (in development)
 
 pyobj_extension - A C extension module offering functions to manipulate low-level Python objects.
 
@@ -479,7 +479,7 @@ list_in(obj, lst)::
     Compared to the built-in Python call "obj in lst" that invokes the "==" operator (__eq__) multiple times, this function directly compares the pointers to improve efficiency.
 
 
-Version: 1.2.7
+Version: 1.2.7.3
 
 Change Log
 ==========
@@ -487,7 +487,7 @@ Change Log
 2025-3-6(v1.2.7): Added support for special class attributes excluded from ``dir()`` (such as ``__flags__``, ``__mro__``) in pyobject.browser and modified the pyobj_extension module.
 
 2025-2-15 (v1.2.6): Fixed the lag issue when browsing large objects in ``pyobject.browser``, improved the ``pyobject.code_`` module, introduced a new reflection library
- ``pyobject.super_reflect`` currently in development, and added ``getrefcount_nogil`` and ``setrefcount_nogil`` to the ``pyobj_extension`` module.
+ ``pyobject.super_proxy`` currently in development, and added ``getrefcount_nogil`` and ``setrefcount_nogil`` to the ``pyobj_extension`` module.
 
 2024-10-24 (v1.2.5): Fixed high DPI support for ``pyobject.browser`` on Windows, modified the ``pyobj_extension`` module, along with other improvements.
 
