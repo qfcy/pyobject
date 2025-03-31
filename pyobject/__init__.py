@@ -1,33 +1,25 @@
-"""一个提供操作Python对象底层工具的模块。
-A utility tool with some submodules for operating internal python objects.
+"""A multifunctional all-in-one utility tool for managing internal Python \
+objects, compatible with nearly all Python 3 versions.
+一个多功能合一的提供操作Python对象底层工具的Python包, 支持几乎所有Python 3版本。
 """
 import sys
 from warnings import warn
 from pprint import pprint
 
-__author__="qfcy"
-__version__="1.2.7.3"
+__version__="1.2.8"
 
-_ignore_names=["__builtins__","__doc__"]
 __all__=["objectname","bases","describe","desc"]
+_ignore_names=["__builtins__","__doc__"]
 
 def objectname(obj):
     """objectname(obj) - Returns the name of an object in the format xxmodule.xxclass.
 For example: objectname(int) -> 'builtins.int'."""
+    # if hasattr(obj,"__qualname__"):return obj.__qualname__
     if not obj.__class__==type:obj=obj.__class__
     if not hasattr(obj,"__module__") or obj.__module__=="__main__":
         return obj.__name__
     return "{}.{}".format(obj.__module__,obj.__name__)
 
-###无递归版本
-##def base(obj):
-##    while True:
-##        try:
-##            obj=obj.__bases__
-##        except AttributeError:obj=[obj.__class__]
-##        if not obj:break
-##        else:obj=obj[0]
-##        print(obj)
 def bases(obj,level=0,tab=4):
     '''bases(obj) - Prints the base classes of the given object.
 tab: The number of spaces for indentation, default is 4.'''
@@ -38,23 +30,13 @@ tab: The number of spaces for indentation, default is 4.'''
         for cls in obj.__bases__:
             bases(cls,level,tab)
 
-_trans_table=str.maketrans("\n\t","  ") # 去除特殊字符
-def _shortrepr(obj,maxlength=150):
+_trans_table=str.maketrans("\n\t","  ") # 替换特殊字符为空格
+def shortrepr(obj,maxlength=150):
     result=repr(obj).translate(_trans_table)
     if len(result)>maxlength:
         return result[:maxlength]+"..."
     return result
 
-###无递归的旧版
-##def describe(obj,verbose=True,needhelp=False,**kwargs):
-##    "Prints the properties of an object."
-##    __builtins__.print(repr(obj)+" :",**kwargs)
-##    for attr in dir(obj):
-##        if verbose or not attr.startswith("_"):
-##            if not attr in ignore_names:
-##                value=getattr(obj,attr)
-##                pprint("{}:{}".format(attr,value),**kwargs)
-##                if needhelp:help(value)
 def describe(obj,level=0,maxlevel=1,tab=4,verbose=False,file=None):
     '''"Describe" an object by printing its attributes.
 Parameters:
@@ -88,6 +70,7 @@ file: A file-like object for printing output.
                     print("<AttributeError!>",file=file)
 
 desc=describe #别名
+
 # 导入其他子模块中的函数和类
 try:
     from pyobject.browser import browse
@@ -105,15 +88,19 @@ try:
     __all__.append("Code")
 except (ImportError,SystemError):warn("Failed to import pyobject.code_.")
 try:
-    from pyobj_extension import *
+    from pyobject.pyobj_extension import *
     __all__.extend(["convptr","py_incref","py_decref","getrealrefcount",
                     "setrefcount","list_in","getrefcount_nogil","setrefcount_nogil",
                     "get_type_flag","set_type_flag","set_type_base","set_type_bases",
                     "set_type_mro","get_type_subclasses","set_type_subclasses",
                     "set_type_subclasses_by_cls"])
-except ImportError:warn("Failed to import module pyobj_extension.")
+except ImportError:warn("Failed to import pyobject.pyobj_extension.")
+try:
+    from pyobject.objproxy import DynObj,ObjChain,ProxiedObj
+    __all__.extend(["DynObj","ObjChain","ProxiedObj"])
+except ImportError:warn("Failed to import pyobject.objproxy.")
 
-def test():
+def demo():
     try:
         describe(type,verbose=True)
     except BaseException as err:
@@ -122,4 +109,4 @@ def test():
         return 1
     else:return 0
 
-if __name__=="__main__":sys.exit(test())
+if __name__=="__main__":sys.exit(demo())

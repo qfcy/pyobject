@@ -13,8 +13,8 @@ except ImportError: # 低于3.7的版本
                        MethodDescriptorType
     ClassMethodDescriptorType = type(dict.__dict__['fromkeys'])
 
-try:from pyobject import objectname,_shortrepr
-except ImportError:from __init__ import objectname,_shortrepr
+try:from pyobject import objectname,shortrepr
+except ImportError:from __init__ import objectname,shortrepr
 
 
 _IMAGE_PATH=os.path.join(os.path.split(__file__)[0],"images")
@@ -216,7 +216,7 @@ class ObjectBrowser():
         # 更新自身显示的数据
         obj=self.obj
         self.master.title("{} - {}".format(self.title,objectname(obj)))
-        self.label["text"]=" Path: %s  Object: %s" % (self.name, _shortrepr(obj))
+        self.label["text"]=" Path: %s  Object: %s" % (self.name, shortrepr(obj))
         self.clear()
         if _first and ismodule(obj):
             self.tvw.item(self.functions_tag,open=True)
@@ -231,7 +231,7 @@ class ObjectBrowser():
             if self.verbose or not attr.startswith("_"):
                 try:
                     object_=getattr(obj,attr)
-                    value=_shortrepr(object_,self.MAX_VIEW_LEN)
+                    value=shortrepr(object_,self.MAX_VIEW_LEN)
                     image=self._get_image(object_)
                     tags=("gray",) if isinstance(object_,SKIP) else () # 将部分类型设为灰色，如MethodWrapperType
                     self.tvw.insert(self._get_type(object_), tk.END, #attr,
@@ -248,7 +248,7 @@ class ObjectBrowser():
                 if not hasattr(obj,attr):continue
                 try:
                     object_=getattr(obj,attr)
-                    value=_shortrepr(object_,self.MAX_VIEW_LEN)
+                    value=shortrepr(object_,self.MAX_VIEW_LEN)
                     self.tvw.insert(self.classes_tag, tk.END,
                                     text=attr, image=self._get_image(object_),
                                     values=(value,))
@@ -264,7 +264,7 @@ class ObjectBrowser():
                 index=str(i)
                 try:
                     object_=obj[i]
-                    value=_shortrepr(object_,self.MAX_VIEW_LEN)
+                    value=shortrepr(object_,self.MAX_VIEW_LEN)
                     image=self._get_image(object_)
                     self.tvw.insert(self.lst_tag, tk.END,
                                     text=index, image=image,
@@ -281,7 +281,7 @@ class ObjectBrowser():
                 key_name=repr(key)
                 try:
                     object_=obj[key]
-                    value=_shortrepr(object_,self.MAX_VIEW_LEN)
+                    value=shortrepr(object_,self.MAX_VIEW_LEN)
                     image=self._get_image(object_)
                     self.tvw.insert(self.dict_tag, tk.END,
                                     text=key_name, image=image,
@@ -317,7 +317,7 @@ class ObjectBrowser():
         else:
             parent=self.tvw.parent(selection[0])
             if parent:
-                #value_str=self.tvw.item(selection[0])["values"][0] # 现已弃用，由于使用了_shortrepr()
+                #value_str=self.tvw.item(selection[0])["values"][0] # 现已弃用，由于使用了shortrepr()
                 attr=self.tvw.item(selection)["text"]
                 if parent==self.dict_tag:
                     value_str=repr(self.obj[eval(attr)])

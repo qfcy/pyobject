@@ -1,4 +1,4 @@
-python -m twine check %*
+call py313 -m twine check %*
 pause
-python -m twine upload %*
+call py313 -m twine upload %*
 pause

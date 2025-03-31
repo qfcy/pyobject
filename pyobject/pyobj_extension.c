@@ -73,6 +73,16 @@ PyDoc_STRVAR(setrefcount_nogil_doc, u8"setrefcount_nogil(obj,ref_data)\n"
 #define _PY312P /* 3.12+所有版本 */
 #endif
 
+// 临时在posix禁用python 3.12+特性
+#ifndef _WIN32
+#ifdef _PY312
+#undef _PY312
+#endif
+#ifdef _PY312P
+#undef _PY312P
+#endif
+#endif
+
 #ifdef _PY312P
 #define Py_BUILD_CORE
 #include <internal/pycore_object.h>        // _PyType_HasFeature()

@@ -25,9 +25,10 @@ def dir(obj):
 def _list_in(obj,lst):
     return obj in lst
 try:
-    from pyobj_extension import list_in as _list_in # 使用更高效的C扩展函数替代
+    from pyobject.pyobj_extension import list_in as _list_in # 使用更快的C扩展函数替代
 except ImportError:
-    warn("Failed to import module pyobj_extension.")
+    warn("Failed to import pyobject.pyobj_extension.")
+
 def _make_list(start_obj,recursions,lst,called,all=False,show_error=True):
     if recursions<=0:return
 
