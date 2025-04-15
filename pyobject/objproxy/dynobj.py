@@ -1,4 +1,4 @@
-# 实现简单的不可变的链式求值对象（备用，后续ProxiedObj的原型）
+# 实现简单的不可变的链式求值对象（备用，也是后续ProxiedObj的原型）
 import functools
 try:from timer_tool import timer # pip install timer-tool
 except ImportError:timer=lambda func:func

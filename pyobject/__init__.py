@@ -6,7 +6,7 @@ import sys
 from warnings import warn
 from pprint import pprint
 
-__version__="1.2.8.1"
+__version__="1.2.9"
 
 __all__=["objectname","bases","describe","desc"]
 _ignore_names=["__builtins__","__doc__"]
@@ -53,7 +53,7 @@ file: A file-like object for printing output.
     elif level>maxlevel:raise ValueError(
         "Argument level is larger than maxlevel")
     else:
-        print(_shortrepr(obj)+': ',file=file)
+        print(shortrepr(obj)+': ',file=file)
         if type(obj) is type:
             print("Base classes of the object:",file=file)
             bases(obj,level+1,tab)
@@ -65,7 +65,7 @@ file: A file-like object for printing output.
                     if not attr in _ignore_names:
                         describe(getattr(obj,attr),level+1,maxlevel,
                                 tab,verbose,file)
-                    else:print(_shortrepr(getattr(obj,attr)),file=file)
+                    else:print(shortrepr(getattr(obj,attr)),file=file)
                 except AttributeError:
                     print("<AttributeError!>",file=file)
 
@@ -84,9 +84,9 @@ try:
 except (ImportError,SystemError):warn("Failed to import pyobject.search.")
 
 try:
-    from pyobject.code_ import Code
+    from pyobject.code import Code
     __all__.append("Code")
-except (ImportError,SystemError):warn("Failed to import pyobject.code_.")
+except (ImportError,SystemError):warn("Failed to import pyobject.code.")
 try:
     from pyobject.pyobj_extension import *
     __all__.extend(["convptr","py_incref","py_decref","getrealrefcount",
@@ -98,7 +98,8 @@ except ImportError:warn("Failed to import pyobject.pyobj_extension.")
 try:
     from pyobject.objproxy import DynObj,ObjChain,ProxiedObj
     __all__.extend(["DynObj","ObjChain","ProxiedObj"])
-except ImportError:warn("Failed to import pyobject.objproxy.")
+except (ImportError, SyntaxError):
+    warn("Failed to import pyobject.objproxy.") # SyntaxError: Python 3.5及以下不支持f-string
 
 def demo():
     try:

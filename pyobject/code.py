@@ -296,8 +296,6 @@ def interactive(mode='exec'):
 
 
 if __name__=="__main__":
-    import doctest
-    doctest.testmod()
     if len(sys.argv)>1:
             ps='>>> '
             statement='c=Code.from_file(%s)'%repr(sys.argv[1].strip('"'))

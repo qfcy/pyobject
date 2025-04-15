@@ -3,17 +3,17 @@ A multifunctional all-in-one utility tool for managing internal Python objects, 
 
 **The English introduction is shown below the Chinese version.**
 
-## 所包含模块
+## 子模块
 
 pyobject.\_\_init\_\_ - 显示和输出Python对象的各个属性值
 
 pyobject.browser - 调用tkinter，浏览Python对象的图形界面
 
-pyobject.code_ - Python 字节码(bytecode)的操作工具
+pyobject.code - Python 底层字节码(bytecode)的操作工具
 
-pyobject.search - 以一个起始对象为起点，查找和搜索能到达的所有python对象
+pyobject.search - 以一个对象为起点，查找和搜索能到达的所有python对象
 
-pyobject.objproxy - 实现一个通用的对象代理，能够替换任意Python对象，包括模块，函数和类
+pyobject.objproxy - 实现一个通用的对象代理，能够代理任意Python对象，包括模块，函数和类
 
 pyobject.pyobj_extension - C扩展模块, 提供操作Python对象底层的函数
 
@@ -146,7 +146,7 @@ Python内部的字节码对象`CodeType`，如`func.__code__`，是不可变的�
 - 属性`co_lnotab`：在3.10以上的版本中，如果尝试设置`co_lnotab`属性，会自动转换成设置`co_linetable`。
 
 
-示例用法: (从模块的doctest中摘取):
+示例用法: (从doctest中摘取):
 
 ```python
 >>> def f():print("Hello")
@@ -320,10 +320,11 @@ unused_var = func(temp_var)
 本函数直接比较对象的指针，提高了效率。
 
 
-**`pyobject`当前版本**: 1.2.8
+**`pyobject`当前版本**: 1.2.9
 
 ## 更新日志:
 
+2025-4-15(v1.2.9):改进和增强了子模块pyobject.objproxy，重命名子模块pyobject.code_为pyobject.code。  
 2025-3-31(v1.2.8):将pyobject.super_proxy重命名为pyobject.objproxy，并正式发布；修改了pyobject.pyobj_extension模块。  
 2025-3-6(v1.2.7):为pyobject.browser新增了`dir()`中不存在的类属性（如`__flags__`, `__mro__`），修改了pyobj_extension模块。  
 2025-2-15(v1.2.6):修复了pyobject.browser浏览过大对象的卡顿问题，改进了pyobject.code_模块，新增了正在开发中的反射库pyobject.super_proxy，
@@ -335,7 +336,7 @@ unused_var = func(temp_var)
 2022-2-2(v1.2.0):修复了一些bug,优化了search模块的性能; code_中增加了Code类, browser中增加编辑属性功能, 增加了Code类的doctest。  
 
 
-
+---
 
 ## Submodules:
 
@@ -343,7 +344,7 @@ pyobject.\_\_init\_\_ - Displays and outputs attribute values of Python objects.
 
 pyobject.browser - Provides a visual interface to browse Python objects using tkinter.
 
-pyobject.code_ - Provides tools for manipulating Python native bytecode.
+pyobject.code - Provides tools for manipulating Python native bytecode.
 
 pyobject.search - Implements the utility for locating the path to a specific object.
 
@@ -473,7 +474,7 @@ Attributes introduced in Python 3.8 and later:
 
 - Attribute `co_lnotab`: In Python 3.10 and later, attempts to set the `co_lnotab` attribute will automatically be converted into setting the `co_linetable` attribute.
 
-Example usage: (excerpted from the module's doctest):
+Example usage: (excerpted from the doctest):
 
 ```python
 >>> def f():print("Hello")
@@ -646,10 +647,11 @@ Determine whether obj is in the sequence lst.
 Compared to the built-in Python call "obj in lst" that invokes the "==" operator (`__eq__`) multiple times, this function directly compares the pointers to improve efficiency.
 
 
-**Current Version of `pyobject`**: 1.2.8
+**Current Version of `pyobject`**: 1.2.9
 
 ## Change Log
 
+2025-4-15(v1.2.9): Improved and enhanced the sub-module `pyobject.objproxy`, and renamed the sub-module `pyobject.code_` to `pyobject.code`.  
 2025-3-31(v1.2.8): Renamed pyobject.super_proxy to pyobject.objproxy and officially released it; modified the pyobject.pyobj_extension module.  
 2025-3-6 (v1.2.7): Added support for special class attributes excluded from `dir()` (such as `__flags__`, `__mro__`) in pyobject.browser and modified the pyobj_extension module.  
 2025-2-15 (v1.2.6): Fixed the lag issue when browsing large objects in `pyobject.browser`, improved the `pyobject.code_` module, introduced a new reflection library `pyobject.super_proxy` currently in development, and added `getrefcount_nogil` and `setrefcount_nogil` to the `pyobj_extension` module.  

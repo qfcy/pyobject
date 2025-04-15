@@ -18,6 +18,7 @@ class TestObjChain(unittest.TestCase):
 
         obj = chain.add_existing_obj(Cls(), "obj")
         self.assertEqual(str(obj), test_str)
+        print("Test test_target_obj:")
         print(f"Code:\n{chain.get_code()}\n")
     def test_no_target_obj(self):
         chain = ObjChain()
@@ -28,6 +29,7 @@ class TestObjChain(unittest.TestCase):
         import numpy as np
         real_arr = np.array([1,2,3])
         self.assertEqual(str(arr),str(real_arr))
+        print("Test test_mixed_target_obj:")
         print(f"Code:\n{chain.get_code()}\n")
     def test_mixed_target_obj(self): # 测试混合有、无target_obj属性
         class Cls_:
@@ -42,13 +44,18 @@ class TestObjChain(unittest.TestCase):
         # 有target_obj模式
         obj = Cls(obj2)
         self.assertTrue(chain.get_target(obj).obj is obj2)
+        print("Test test_mixed_target_obj:")
         print(f"Code:\n{chain.get_code()}\n")
     def test_isinstance(self):
         class Cls:pass
+        class Cls2:pass
         chain = ObjChain()
         obj = chain.add_existing_obj(Cls(),"obj")
-        self.assertTrue(issubclass(type(obj), Cls)) # 需要有pyobj_extension库，测试才会成功
+        self.assertTrue(issubclass(type(obj), Cls)) # 有pyobj_extension模块时测试才成功
+        self.assertFalse(issubclass(type(obj), Cls2))
         self.assertTrue(isinstance(obj, Cls))
+        self.assertFalse(isinstance(obj, Cls2))
+        print("Test test_isinstance:")
         print(f"Code:\n{chain.get_code()}\n")
     def test_with(self):
         class Cls:
@@ -60,7 +67,19 @@ class TestObjChain(unittest.TestCase):
         obj = chain.add_existing_obj(Cls(),"obj")
         with obj:
             obj.meth()
-        print(f"Code:\n{chain.get_code()}\n")
+        print("Test test_with:")
+        print(f"Code:\n{chain.get_code()}")
+        print(f"Optimized:\n{chain.get_optimized_code()}\n")
+    def test_inheritance(self):
+        class Cls:
+            def meth(self):pass
+
+        chain = ObjChain(hook_inheritance = True)
+        cls = chain.add_existing_obj(Cls,"Cls")
+        class Inherited(cls):pass
+        Inherited().meth()
+        print("Test test_inheritance:")
+        print(f"Code:\n{chain.get_code()}")
         print(f"Optimized:\n{chain.get_optimized_code()}\n")
 
 if __name__=="__main__":
