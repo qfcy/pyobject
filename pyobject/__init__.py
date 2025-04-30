@@ -11,9 +11,10 @@ __version__="1.2.9"
 __all__=["objectname","bases","describe","desc"]
 _ignore_names=["__builtins__","__doc__"]
 
+MAXLENGTH=150
+
 def objectname(obj):
-    """objectname(obj) - Returns the name of an object in the format xxmodule.xxclass.
-For example: objectname(int) -> 'builtins.int'."""
+    # 返回对象的全名，类似__qualname__属性
     # if hasattr(obj,"__qualname__"):return obj.__qualname__
     if not obj.__class__==type:obj=obj.__class__
     if not hasattr(obj,"__module__") or obj.__module__=="__main__":
@@ -21,8 +22,7 @@ For example: objectname(int) -> 'builtins.int'."""
     return "{}.{}".format(obj.__module__,obj.__name__)
 
 def bases(obj,level=0,tab=4):
-    '''bases(obj) - Prints the base classes of the given object.
-tab: The number of spaces for indentation, default is 4.'''
+    # 打印对象的基类
     if not obj.__class__==type:obj=obj.__class__
     if obj.__bases__:
         if level:print(' '*(level*tab),end='')
@@ -31,8 +31,9 @@ tab: The number of spaces for indentation, default is 4.'''
             bases(cls,level,tab)
 
 _trans_table=str.maketrans("\n\t","  ") # 替换特殊字符为空格
-def shortrepr(obj,maxlength=150):
-    result=repr(obj).translate(_trans_table)
+def shortrepr(obj,maxlength=MAXLENGTH,repr_func=None):
+    if repr_func is None:repr_func = repr
+    result=repr_func(obj).translate(_trans_table)
     if len(result)>maxlength:
         return result[:maxlength]+"..."
     return result
@@ -96,18 +97,16 @@ try:
                     "set_type_subclasses_by_cls"])
 except ImportError:warn("Failed to import pyobject.pyobj_extension.")
 try:
-    from pyobject.objproxy import DynObj,ObjChain,ProxiedObj
-    __all__.extend(["DynObj","ObjChain","ProxiedObj"])
+    from pyobject.objproxy import DynObj,ObjChain,ProxiedObj,accept_raw_obj
+    __all__.extend(["DynObj","ObjChain","ProxiedObj","accept_raw_obj"])
 except (ImportError, SyntaxError):
     warn("Failed to import pyobject.objproxy.") # SyntaxError: Python 3.5及以下不支持f-string
 
-def demo():
+def desc_demo():
     try:
         describe(type,verbose=True)
     except BaseException as err:
         print("STOPPED!",file=sys.stderr)
-        if not type(err) is KeyboardInterrupt:raise
-        return 1
-    else:return 0
+        if type(err) is not KeyboardInterrupt:raise
 
-if __name__=="__main__":sys.exit(demo())
+if __name__=="__main__":desc_demo()

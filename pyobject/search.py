@@ -26,8 +26,7 @@ def _list_in(obj,lst):
     return obj in lst
 try:
     from pyobject.pyobj_extension import list_in as _list_in # 使用更快的C扩展函数替代
-except ImportError:
-    warn("Failed to import pyobject.pyobj_extension.")
+except ImportError:pass
 
 def _make_list(start_obj,recursions,lst,called,all=False,show_error=True):
     if recursions<=0:return

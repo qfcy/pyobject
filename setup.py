@@ -38,13 +38,14 @@ setup(
         "pyobject.pyobj_extension",["pyobject/pyobj_extension.c"]
     )],
     keywords=["pyobject","python","object","utility","object browser",
-        "bytecode","reflect","object search","OOP","对象","字节码","对象浏览器"
+        "bytecode","reflect","object search","OOP","reverse","对象","字节码","逆向"
     ],
     classifiers=[
         'Programming Language :: Python',
         "Topic :: Utilities",
         "Topic :: Software Development :: Bug Tracking",
         "Topic :: Software Development :: Debuggers",
+        "Topic :: Software Development :: Object Brokering",
         "Topic :: Software Development :: Testing",
         "Topic :: Software Development :: Libraries :: Python Modules"
     ],

@@ -190,7 +190,7 @@ np = chain.new_object("import numpy as np","np")
 plt = chain.new_object("import matplotlib.pyplot as plt","plt",
                         export_funcs = ["show"])
 
-# 测试调用伪numpy, matplotlib模块
+# 测试调用代理后的numpy, matplotlib模块
 arr = np.array(range(1,11))
 arr_squared = arr ** 2
 print(np.mean(arr)) # 输出平均值
@@ -324,7 +324,7 @@ unused_var = func(temp_var)
 
 ## 更新日志:
 
-2025-4-15(v1.2.9):改进和增强了子模块pyobject.objproxy，重命名子模块pyobject.code_为pyobject.code。  
+2025-4-30(v1.2.9):改进和增强了子模块pyobject.objproxy，重命名子模块pyobject.code_为pyobject.code。  
 2025-3-31(v1.2.8):将pyobject.super_proxy重命名为pyobject.objproxy，并正式发布；修改了pyobject.pyobj_extension模块。  
 2025-3-6(v1.2.7):为pyobject.browser新增了`dir()`中不存在的类属性（如`__flags__`, `__mro__`），修改了pyobj_extension模块。  
 2025-2-15(v1.2.6):修复了pyobject.browser浏览过大对象的卡顿问题，改进了pyobject.code_模块，新增了正在开发中的反射库pyobject.super_proxy，
@@ -651,7 +651,7 @@ Compared to the built-in Python call "obj in lst" that invokes the "==" operator
 
 ## Change Log
 
-2025-4-15(v1.2.9): Improved and enhanced the sub-module `pyobject.objproxy`, and renamed the sub-module `pyobject.code_` to `pyobject.code`.  
+2025-4-30(v1.2.9): Improved and enhanced the sub-module `pyobject.objproxy`, and renamed the sub-module `pyobject.code_` to `pyobject.code`.  
 2025-3-31(v1.2.8): Renamed pyobject.super_proxy to pyobject.objproxy and officially released it; modified the pyobject.pyobj_extension module.  
 2025-3-6 (v1.2.7): Added support for special class attributes excluded from `dir()` (such as `__flags__`, `__mro__`) in pyobject.browser and modified the pyobj_extension module.  
 2025-2-15 (v1.2.6): Fixed the lag issue when browsing large objects in `pyobject.browser`, improved the `pyobject.code_` module, introduced a new reflection library `pyobject.super_proxy` currently in development, and added `getrefcount_nogil` and `setrefcount_nogil` to the `pyobj_extension` module.  
