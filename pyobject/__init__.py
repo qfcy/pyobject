@@ -6,7 +6,7 @@ import sys
 from warnings import warn
 from pprint import pprint
 
-__version__="1.2.9"
+__version__="1.2.9.1"
 
 __all__=["objectname","bases","describe","desc"]
 _ignore_names=["__builtins__","__doc__"]
