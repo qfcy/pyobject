@@ -1,5 +1,5 @@
-# 内置函数和少数标准库函数的hook
-import builtins,_collections_abc
+# 内置函数和部分标准库函数的hook
+import sys,builtins,_collections_abc,inspect
 import collections.abc as collections_abc
 from pyobject.objproxy import ProxiedObj,accept_raw_obj
 
@@ -14,7 +14,7 @@ def __build_class__(func, cls_name, *bases, metaclass=None, **kwds):
     chain = None
     dependency = []
     for i, cls in enumerate(bases):
-        if isinstance(cls, ProxiedObj):
+        if _isinstance(cls, ProxiedObj):
             bases[i] = cls._ProxiedObj__target_obj
             if chain is not None and cls._ProxiedObj__chain is not chain:
                 raise ValueError("base classes should be associated with the same chain")
@@ -40,7 +40,7 @@ _getattr = getattr
 def isinstance(obj, class_or_tuple):
     if _isinstance(class_or_tuple, ProxiedObj):
         class_or_tuple = class_or_tuple._ProxiedObj__target_obj
-    if _isinstance(class_or_tuple, tuple):
+    elif _isinstance(class_or_tuple, tuple):
         class_or_tuple = tuple(cls._ProxiedObj__target_obj \
             if _isinstance(cls, ProxiedObj) else cls \
             for cls in class_or_tuple)
@@ -52,6 +52,8 @@ def isinstance(obj, class_or_tuple):
         return _isinstance(obj, class_or_tuple) # 重新调用_isinstance
     return result
 def issubclass(cls, class_or_tuple):
+    if _isinstance(cls, ProxiedObj):
+        cls = cls._ProxiedObj__target_obj
     if _isinstance(class_or_tuple, ProxiedObj):
         class_or_tuple = class_or_tuple._ProxiedObj__target_obj
     if _issubclass(cls, ProxiedObj):
@@ -64,9 +66,9 @@ def callable(obj):
         obj = obj._ProxiedObj__target_obj
     return _callable(obj)
 def getattr(*args,**kw):
-    if isinstance(args[1],ProxiedObj):
+    if _isinstance(args[1],ProxiedObj):
         args = (args[0], args[1]._ProxiedObj__target_obj, *args[2:])
-    if "name" in kw and isinstance(kw["name"],ProxiedObj):
+    if "name" in kw and _isinstance(kw["name"],ProxiedObj):
         kw["name"] = kw["name"]._ProxiedObj__target_obj
     return _getattr(*args)
 
@@ -79,6 +81,51 @@ def _check_methods(Cls, *methods):
             return _pre_check_methods(object,*methods) # ProxiedObj继承自object
     return _pre_check_methods(Cls,*methods)
 
+_super=builtins.super
+class super(_super):
+    def __init__(self,*args):
+        # 模拟CPython typeobject.c中super()的行为
+        if not args:
+            frame = getattr(sys._getframe(),"f_back",None)
+            if frame is None:
+                raise RuntimeError("super(): no current frame")
+            code = frame.f_code
+            if code is None:
+                raise RuntimeError("super(): no code object")
+            if code.co_argcount == 0:
+                raise RuntimeError("super(): no arguments")
+            try:
+                self_ = frame.f_locals[code.co_varnames[0]]
+            except (IndexError, KeyError):
+                raise RuntimeError("super(): arg[0] deleted") from None
+            if "__class__" not in frame.f_locals:
+                raise RuntimeError("super(): bad __class__ cell")
+            cls = frame.f_locals["__class__"]
+            if not isinstance(cls, type):
+                raise RuntimeError("super(): __class__ is not a type (%s)" \
+                                   % type(cls).__name__)
+            args = (cls, self_)
+        args = tuple(item._ProxiedObj__target_obj if _issubclass(
+                     object.__getattribute__(item,"__class__"),
+                     ProxiedObj) else item for item in args) # 确保不为ProxiedObj
+        _super.__init__(self,*args)
+
+_signature = inspect.signature
+_getattr_static = inspect.getattr_static
+def signature(obj, **kw):
+    if _isinstance(obj, ProxiedObj):
+        obj = obj._ProxiedObj__target_obj
+    return _signature(obj, **kw)
+def getattr_static(obj, attr, *args, **kw):
+    if _isinstance(obj, ProxiedObj):
+        obj = obj._ProxiedObj__target_obj
+    if _isinstance(attr, ProxiedObj):
+        attr = attr._ProxiedObj__target_obj
+    if kw:
+        return _getattr_static(obj, attr, *args, **kw)
+    else:
+        return _getattr_static(obj, attr, *args)
+
 def hook_builtins():
     builtins.range=range
     builtins.__build_class__ = __build_class__
@@ -86,8 +133,11 @@ def hook_builtins():
     builtins.issubclass = issubclass
     builtins.callable = callable
     builtins.getattr = getattr
+    builtins.super = super
     _collections_abc._check_methods = _check_methods # 修改collections.abc库
     collections_abc._check_methods = _check_methods
+    inspect.signature = signature
+    inspect.getattr_static = getattr_static
 
 # 内置类型的修改（备用）
 class CustomStr(builtins.str):

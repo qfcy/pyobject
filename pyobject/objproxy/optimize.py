@@ -4,10 +4,10 @@ from pyobject.objproxy.utils import *
 MERGABLE_INFO = ["_alias_name"]
 
 class Statement: # 图节点（一条语句）
-    def __init__(self,graph,code,var,dependency_vars,extra_info=None):
+    def __init__(self,graph,code,varname,dependency_vars,extra_info=None):
         self.graph = graph
         self.code = code
-        self.var = var
+        self.var = varname
         self.extra_info = extra_info or {}
         self.removed = False
         self.depends = set()
@@ -39,7 +39,8 @@ class Statement: # 图节点（一条语句）
                 self.var = None
             except NotAssignmentError:pass # 不是赋值语句
             if remove_internal and self.extra_info.get("_internal",False)\
-               or remove_export_type and self.extra_info.get("_export_type",False):
+                    or remove_export_type and self.extra_info.get("_export_type",False)\
+                    or self.extra_info.get("_optional_stat",False):
                 for dep in self.depends:
                     dep.affects.remove(self)
                     dep.affects_cnt -= 1
@@ -100,7 +101,7 @@ def import_optimizer(graph):
         try:
             stat.code = optimize_import(stat.code)
         except NotAnImportError:pass
-        
+
     graph.clear_removed_statements()
 
 def import_alias_optimizer(graph):

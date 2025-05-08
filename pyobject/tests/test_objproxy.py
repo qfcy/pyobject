@@ -62,7 +62,7 @@ class TestObjChain(unittest.TestCase):
         class Cls2:pass
         chain = ObjChain()
         obj = chain.add_existing_obj(Cls(),"obj")
-        self.assertTrue(issubclass(type(obj), Cls)) # 有pyobj_extension模块时测试才成功
+        self.assertTrue(issubclass(type(obj), Cls))
         self.assertFalse(issubclass(type(obj), Cls2))
         self.assertTrue(isinstance(obj, Cls))
         self.assertFalse(isinstance(obj, Cls2))

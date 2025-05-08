@@ -6,7 +6,7 @@ import sys
 from warnings import warn
 from pprint import pprint
 
-__version__="1.2.9.1"
+__version__="1.2.9.2"
 
 __all__=["objectname","bases","describe","desc"]
 _ignore_names=["__builtins__","__doc__"]
@@ -97,10 +97,10 @@ try:
                     "set_type_subclasses_by_cls"])
 except ImportError:warn("Failed to import pyobject.pyobj_extension.")
 try:
-    from pyobject.objproxy import DynObj,ObjChain,ProxiedObj,accept_raw_obj
-    __all__.extend(["DynObj","ObjChain","ProxiedObj","accept_raw_obj"])
+    from pyobject.objproxy import DynObj,ObjChain,ProxiedObj
+    __all__.extend(["DynObj","ObjChain","ProxiedObj"])
 except (ImportError, SyntaxError):
-    warn("Failed to import pyobject.objproxy.") # SyntaxError: Python 3.5及以下不支持f-string
+    warn("Failed to import pyobject.objproxy.") # Python 3.5及以下不支持f-string，无法使用objproxy库
 
 def desc_demo():
     try:

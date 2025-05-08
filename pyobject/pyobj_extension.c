@@ -73,7 +73,7 @@ PyDoc_STRVAR(setrefcount_nogil_doc, u8"setrefcount_nogil(obj,ref_data)\n"
 #define _PY312P /* 3.12+所有版本 */
 #endif
 
-// 临时在posix禁用python 3.12+特性
+// TODO: 临时在posix禁用python 3.12+特性
 #ifndef _WIN32
 #ifdef _PY312
 #undef _PY312

@@ -82,7 +82,7 @@ def ck(obj,symbol):
 def magic_meth(meth): # 用于无法获知具体表达式的魔法方法调用（备用函数）
     @functools.wraps(meth)
     def override(self,*args,**kw):
-        return DynObj(f"{ck(self)}.{meth.__name__}") # 优先级使用默认的HIGHEST
+        return DynObj(f"{ck(self, HIGHEST)}.{meth.__name__}") # 优先级使用默认的HIGHEST
     return override
 
 # 能包装表达式链式求值的对象（不可变）
@@ -111,9 +111,9 @@ class DynObj:
         return self.__code
 
     # 算术运算符
-    def __add__(self, other): return DynObj(f"{ck(self,ADD)} + {ck(other,ADD)}",ADD)
-    def __sub__(self, other): return DynObj(f"{ck(self,SUB)} - {ck(other,SUB)}",SUB)
-    def __mul__(self, other): return DynObj(f"{ck(self,MUL)} * {ck(other,MUL)}",MUL)
+    def __add__(self, other): return DynObj(f"{ck(self, ADD)} + {ck(other,ADD)}",ADD)
+    def __sub__(self, other): return DynObj(f"{ck(self, SUB)} - {ck(other,SUB)}",SUB)
+    def __mul__(self, other): return DynObj(f"{ck(self, MUL)} * {ck(other,MUL)}",MUL)
     def __truediv__(self, other):
         return DynObj(f"{ck(self, DIV)} / {ck(other, DIV)}", DIV)
     def __floordiv__(self, other):

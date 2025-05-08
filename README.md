@@ -280,7 +280,7 @@ temp_var = [1,2,3]
 unused_var = func(temp_var)
 ```
 代码中`temp_var`只有一条指向`unused_var`的边，而`unused_var`没有任何指出的边。  
-将`temp_var`的值代入`func(temp_var)`进行内联，并去掉`unused_var`，优化后的代码会变成`func([1,2,3])`。  
+将`temp_var`的值代入`func(temp_var)`进行内联，得到`unused_var = func([1,2,3])`，再去掉`unused_var`，优化后的代码会变成`func([1,2,3])`。  
 
 ## 模块`pyobject.pyobj_extension`
 
@@ -320,7 +320,7 @@ unused_var = func(temp_var)
 本函数直接比较对象的指针，提高了效率。
 
 
-**`pyobject`当前版本**: 1.2.9
+**`pyobject`当前版本**: 1.2.9.2
 
 ## 更新日志:
 
@@ -605,7 +605,7 @@ temp_var = [1, 2, 3]
 unused_var = func(temp_var)
 ```
 Here, `temp_var` only has one edge pointing to `unused_var`, while `unused_var` does not point to any other node.  
-By inlining the value of `temp_var` into `func(temp_var)` and removing `unused_var`, the optimized code becomes `func([1, 2, 3])`.
+By inlining the value of `temp_var` into `func(temp_var)`, the code becomes `unused_var = func([1,2,3])`. After removing `unused_var`, the optimized code is `func([1, 2, 3])`.
 
 ## Module: `pyobj_extension`
 
@@ -647,7 +647,7 @@ Determine whether obj is in the sequence lst.
 Compared to the built-in Python call "obj in lst" that invokes the "==" operator (`__eq__`) multiple times, this function directly compares the pointers to improve efficiency.
 
 
-**Current Version of `pyobject`**: 1.2.9
+**Current Version of `pyobject`**: 1.2.9.2
 
 ## Change Log
 

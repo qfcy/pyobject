@@ -19,28 +19,32 @@ INDENT = 4
 NOCODE_EXPORT_ATTRS = ["__class__","__dict__"] # 不留下代码记录的导出属性
 DEFAULT_EXPORT_FUNCS = [] # 在magic_meth_chained中自动生成
 
-def unproxy_obj(obj): # 递归解除obj的代理（备用函数）
-    while isinstance(obj, ProxiedObj):
+def unproxy_obj(obj):
+    if _isinstance(obj, ProxiedObj):
         obj = obj._ProxiedObj__target_obj
+    return obj
 
+def unproxy_obj_recursive(obj): # 递归解除obj的代理（备用函数）
+    while _isinstance(obj, ProxiedObj):
+        obj = obj._ProxiedObj__target_obj
     # 递归处理容器
-    if isinstance(obj, dict):
-        return {unproxy_obj(k): unproxy_obj(v) for k, v in obj.items()}
-    elif isinstance(obj, list):
-        return [unproxy_obj(item) for item in obj]
-    elif isinstance(obj, tuple):
-        return tuple(unproxy_obj(item) for item in obj)
-    elif isinstance(obj, set):
-        return {unproxy_obj(item) for item in obj}
+    if _isinstance(obj, dict):
+        return {unproxy_obj_recursive(k): unproxy_obj_recursive(v)
+                for k, v in obj.items()}
+    elif _isinstance(obj, list):
+        return [unproxy_obj_recursive(item) for item in obj]
+    elif _isinstance(obj, tuple):
+        return tuple(unproxy_obj_recursive(item) for item in obj)
+    elif _isinstance(obj, set):
+        return {unproxy_obj_recursive(item) for item in obj}
     else:
         return obj
-
 def accept_raw_obj(func,process_arg=None,process_kw=None,process_ret=None):
     # 装饰器，用于有target_obj时只接受原始对象而不是ProxiedObj的函数（备用）
     @functools.wraps(func)
     def inner(*args,**kw):
-        args = unproxy_obj(args)
-        kw = unproxy_obj(kw)
+        args = unproxy_obj_recursive(args)
+        kw = unproxy_obj_recursive(kw)
 
         if process_arg is not None:
             args = process_arg(args)
@@ -56,9 +60,9 @@ def accept_raw_obj(func,process_arg=None,process_kw=None,process_ret=None):
         return result
     return inner
 
-class EmptyTarget:
+class _EmptyTarget:
     def __bool__(self):return False
-EMPTY_OBJ = EmptyTarget() # 空对象的特殊值
+EMPTY_OBJ = _EmptyTarget() # 空对象的特殊值
 class ReprFormatProxy:
     def __init__(self,target_obj,repr_func):
         self.target_obj = target_obj
@@ -77,7 +81,7 @@ def basic_repr(obj):
     return object.__repr__(obj)
 
 def is_trivial_obj(obj): # 检查对象能否被repr()表示（即对象必须是基本类型）
-    if isinstance(obj, ProxiedObj):
+    if _isinstance(obj, ProxiedObj):
         obj = obj._ProxiedObj__target_obj
         if obj is EMPTY_OBJ:return True
     if type(obj) not in TRIVIAL_TYPES: # 不使用isinstance（由于不能是基本类型子类）
@@ -93,21 +97,39 @@ def is_builtin_type(cls): # 备用函数
         flag = get_type_flag(cls)
         if not flag & Py_TPFLAGS_HEAPTYPE or flag & _Py_TPFLAGS_STATIC_BUILTIN:
             return True
+        return False
     else:
         return True
         #if cls in vars(builtins).values() or cls in vars(types).values():
         #    return True
     #return False
 
-def proxyCls(obj=None):
+def proxyCls(T=_EmptyTarget, chain=EMPTY_OBJ, fromvar=None):
     # 泛型，proxyCls(T)生成类型信息为T的继承自ProxiedObj的类
-    if obj is None:
+    if T is EMPTY_OBJ:
         return ProxiedObj
-    if not isinstance(obj,type): # obj不是类
-        T = type(obj)
-    else:T = obj
-    class ProxyCls(ProxiedObj): # 创建同时从ProxiedObj与target_obj继承的类
+
+    class ProxyCls(ProxiedObj): # 创建同时从ProxiedObj与T继承的类
+        # pylint: disable=unused-private-member
         __proto = T # 自身使用的原型
+        def __new__(cls,*args,**kw):
+            _chain = args[0] if args else kw.get("chain")
+            if not _isinstance(_chain,ObjChain) and chain is not EMPTY_OBJ:
+                var = chain.new_var(T.__name__)
+                if fromvar is not None:
+                    # pylint: disable=self-cls-assignment
+                    cls = chain.add_existing_obj(T,var,f"{var} = {fromvar}.__class__",
+                                                 [fromvar])
+                else:
+                    cls = chain.add_existing_obj(T,var, # pylint: disable=self-cls-assignment
+                        f"# class {var}: {shortrepr(cls,repr_func=basic_repr)}")
+                if len(args) == 3 and isinstance(T,type):
+                    args=(args[0],tuple(unproxy_obj(cls) for cls in args[1]),args[2])
+
+                if kw:return cls(*args,**kw)
+                return cls(*args) # 返回ProxyCls
+            else:
+                return ProxiedObj.__new__(cls,*args,**kw)
 
     return ProxyCls
 
@@ -148,7 +170,7 @@ class ObjChain:
         # 自动检测依赖的变量，返回变量名的列表和未知对象的列表
         result = []; unknown = []
         for obj in itertools.chain(*iterables):
-            if isinstance(obj,ProxiedObj):
+            if _isinstance(obj,ProxiedObj):
                 self._assert_assoc_with(obj) # 确保关联到自身
                 result.append(obj._ProxiedObj__name)
             elif id(obj) in self.exported_vars:
@@ -192,8 +214,8 @@ class ObjChain:
         else:
             exec(statement,self.scope)
             result = self.scope[name]
-        return proxyCls(result)(self,name,target_obj=result,
-                                export_trivial_obj=export_trivial_obj)
+        return proxyCls(type(result),self,name)(self,name,result,
+                                                export_trivial_obj=export_trivial_obj)
     def add_existing_obj(self,obj,name,statement=None,dependency_vars=None,
                          export_funcs=None,export_attrs=None,extra_info=None,
                          export_trivial_obj=None,_export_call=False,
@@ -213,8 +235,8 @@ class ObjChain:
             self.custom_export_attr_check[name] = custom_export_attr
 
         self.add_code(statement,name,dependency_vars,**(extra_info or {}))
-        self.scope[name] = proxyCls(obj)(self, name, _export_call, target_obj = obj,
-                                         export_trivial_obj = export_trivial_obj)
+        self.scope[name] = proxyCls(type(obj),self,name)(self, name, obj, _export_call,
+                                                         export_trivial_obj = export_trivial_obj)
         return self.scope[name]
     def add_exported_obj(self,obj,name): # 添加已导出的对象，仅更新exported_vars
         self.exported_vars[id(obj)] = name
@@ -232,7 +254,7 @@ class ObjChain:
         if obj._ProxiedObj__chain is not self:
             raise ValueError("chain.get_repr(obj): obj is not associated with this chain")
     def get_target(self,obj): # 获取ProxiedObj的目标对象
-        if not isinstance(obj,ProxiedObj):
+        if not _isinstance(obj,ProxiedObj):
             raise TypeError("obj should be an instance of ProxiedObj")
         self._assert_assoc_with(obj)
         target = obj._ProxiedObj__target_obj
@@ -258,7 +280,7 @@ class ObjChain:
                     return varname
                 num += 1
     def get_repr(self,obj): # 用于代码生成中的repr，如果对象是ProxiedObj，则直接返回对应的变量名
-        if isinstance(obj,ProxiedObj):
+        if _isinstance(obj,ProxiedObj):
             self._assert_assoc_with(obj)
             return obj._ProxiedObj__name
         else:
@@ -355,7 +377,7 @@ class ObjChain:
                 if export or use_exported_obj: # use_exported_obj: 是否在不导出时也在exec用target_obj作为变量，避免递归
                     scope = {}
                     for var in self.code_vars[cur_idx][1]: # 导出时，不使用ProxiedObj执行，避免递归
-                        if isinstance(self.scope[var],ProxiedObj):
+                        if _isinstance(self.scope[var],ProxiedObj):
                             self._assert_assoc_with(self.scope[var])
                             scope[var] = self.scope[var]._ProxiedObj__target_obj
                         else:
@@ -443,8 +465,8 @@ def magic_meth_chained(fmt = None, use_newvar = True, indent_delta = 0,
                     result = chain.eval_value(new_var) # 逐行一次性执行代码，并返回结果
                     return result
             if use_newvar:
-                return proxyCls(result)(chain,new_var,target_obj=result,
-                                        export_trivial_obj=self._ProxiedObj__export_trivial_obj)
+                return proxyCls(type(result),self._ProxiedObj__chain,new_var)(chain,new_var,
+                            result,export_trivial_obj=self._ProxiedObj__export_trivial_obj)
             return self
 
         return override
@@ -454,10 +476,12 @@ class ProxiedObj:
     # 代理其他对象的类（建议使用ObjChain的new_object和add_existing_obj方法，而不是实例化本类）
     # 如果有target_obj，则内部应使用泛型proxyCls(T)替代ProxiedObj类，
     # 避免isinstance检测返回False
-    def __init__(self,chain,name,_export_call=False,
-                 target_obj=EMPTY_OBJ,export_trivial_obj=False):
+    def __init__(self,chain,name,target_obj=EMPTY_OBJ,
+                 _export_call=False,export_trivial_obj=False):
         # target_obj: 要操作（代理）的目标对象，可选
         # _export_call: 当前对象的__call__是否会导出真正的结果（而不是下一个ProxiedObj）
+        if "_ProxiedObj__chain" in object.__getattribute__(self,"__dict__"):
+            return # 已经初始化过
         self.__chain=chain
         self.__name=name
         self.__export_call=_export_call
@@ -472,6 +496,7 @@ class ProxiedObj:
             self.__chain.proxies[id(target_obj)] = self
 
         self.__export_trivial_obj=export_trivial_obj
+        # pylint: disable=unused-private-member
         self.__no_self_attr = True # 不再使用自身的属性
     def __call__(self,*args,**kw):
         depend_vars = self.__chain._detect_var_and_add_obj((self,), args, kw.values())
@@ -490,8 +515,7 @@ class ProxiedObj:
                     return self.__target_obj(*args,**kw)
                 else:
                     return self.__target_obj(*args) # 避免对不接收关键字参数的函数传递关键字
-            result = self.__chain._get_new_targetobj(self.__target_obj,new_var,_getter,
-                                                     use_exported_obj=True)
+            result = self.__chain._get_new_targetobj(self.__target_obj,new_var,_getter)
 
         if self.__export_call or (self.__export_trivial_obj
                                   and is_trivial_obj(result)):
@@ -506,9 +530,8 @@ class ProxiedObj:
             if self.__name in self.__chain.export_funcs:
                 self.__chain.export_funcs[new_var] = self.__chain.\
                                                      export_funcs[self.__name].copy()
-        return proxyCls(result)(self.__chain,new_var,
-                                target_obj=result,
-                                export_trivial_obj=self.__export_trivial_obj)
+        return proxyCls(type(result),self.__chain,self.__name)(self.__chain,new_var,
+                                    result,export_trivial_obj=self.__export_trivial_obj)
 
     #@magic_meth_chained("{_var} = {_self}.{}")
     def __getattr__(self,attr):
@@ -537,9 +560,10 @@ class ProxiedObj:
         else:
             self.__chain.update_exports(self.__name, attr, new_var)
 
-        return proxyCls(result)(self.__chain,new_var,
-                                self.__chain.is_export_func(attr,self.__name),
-                                result,self.__export_trivial_obj)
+        return proxyCls(type(result),self.__chain,self.__name)(
+                            self.__chain,new_var,result,
+                            self.__chain.is_export_func(attr,self.__name),
+                            self.__export_trivial_obj)
     @magic_meth_chained("{_var} = str({_self})",export=True)
     def __str__(self): pass
     @magic_meth_chained("{_var} = repr({_self})",export=True)
@@ -561,6 +585,16 @@ class ProxiedObj:
                 and not attr.startswith("_ProxiedObj"):
             raise AttributeError # 改用__getattr__
         return result
+    def __new__(cls,*args,**kw):
+        if len(args) >= 3:
+            target_obj = args[2]
+        elif "target_obj" in kw:
+            target_obj = kw["target_obj"]
+        else:
+            target_obj = EMPTY_OBJ
+        if _isinstance(target_obj, ProxiedObj):
+            return target_obj # 避免重复包装对象，提高性能
+        return object.__new__(cls)
 
     # 算术运算符
     @magic_meth_chained("{_var} = {_self} + {!r}")
@@ -712,7 +746,8 @@ class ProxiedObj:
     @magic_meth_chained(default_fmt=True,export=True)
     def __fspath__(self):pass
 
-from pyobject.objproxy.builtin_hook import hook_builtins
+_isinstance = isinstance
+from pyobject.objproxy.builtin_hook import hook_builtins # pylint: disable=ungrouped-imports
 hook_builtins() # hook内置函数
 
 def proxy_demo():
