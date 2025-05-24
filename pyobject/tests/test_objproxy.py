@@ -87,6 +87,18 @@ class TestObjChain(unittest.TestCase):
         class Inherited(cls):pass
         Inherited().meth()
         self.print_code(chain, print_optimized = True)
+    def test_aug_assign(self):
+        class Cls:
+            def __iadd__(self, inc):return inc
+            def __isub__(self, dec):return self
+
+        chain = ObjChain()
+        obj = chain.add_existing_obj(Cls(),"obj")
+        var1=obj; var1+=1
+        var2=obj; var2-=2
+        self.assertEqual(var1, 1)
+        self.assertTrue(var2 is obj)
+        self.print_code(chain, print_optimized = True)
     def test_export(self): # 测试export_funcs和export_attrs
         class Cls:
             def __init__(self):
