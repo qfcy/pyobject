@@ -24,42 +24,6 @@ def unproxy_obj(obj):
         obj = obj._ProxiedObj__target_obj
     return obj
 
-def unproxy_obj_recursive(obj): # 递归解除obj的代理（备用函数）
-    while _isinstance(obj, ProxiedObj):
-        obj = obj._ProxiedObj__target_obj
-    # 递归处理容器
-    if _isinstance(obj, dict):
-        return {unproxy_obj_recursive(k): unproxy_obj_recursive(v)
-                for k, v in obj.items()}
-    elif _isinstance(obj, list):
-        return [unproxy_obj_recursive(item) for item in obj]
-    elif _isinstance(obj, tuple):
-        return tuple(unproxy_obj_recursive(item) for item in obj)
-    elif _isinstance(obj, set):
-        return {unproxy_obj_recursive(item) for item in obj}
-    else:
-        return obj
-def accept_raw_obj(func,process_arg=None,process_kw=None,process_ret=None):
-    # 装饰器，用于有target_obj时只接受原始对象而不是ProxiedObj的函数（备用）
-    @functools.wraps(func)
-    def inner(*args,**kw):
-        args = unproxy_obj_recursive(args)
-        kw = unproxy_obj_recursive(kw)
-
-        if process_arg is not None:
-            args = process_arg(args)
-        if process_kw is not None:
-            kw = process_kw(kw)
-
-        if kw:
-            result = func(*args,**kw)
-        else:
-            result = func(*args)
-        if process_ret is not None:
-            result = process_ret(result)
-        return result
-    return inner
-
 class _EmptyTarget:
     def __bool__(self):return False
 EMPTY_OBJ = _EmptyTarget() # 空对象的特殊值
@@ -124,12 +88,15 @@ class ObjChain:
         self._var_num = 0 # 变量序号
         self.code_vars = [] # 每行代码修改和依赖于的变量，例如[("result_var",["depend_var1",...],{}),...]，{}为额外信息
         self.code_executed = [] # 代码是否已执行过（确保代码只执行一次）
+        self._executed_idx = 0 # 前面全部执行过的行号
         self._is_evaluating = False # 当前是否正在执行调用（用于代码的_internal信息）
         self.export_trivial_obj = export_trivial_obj # 是否不使用ProxiedObj包装基本类型（如整数、列表等）
         self.hook_inheritance = hook_inheritance # 是否继续hook从ProxiedObj包装的类继承的新类
         self.hook_method_call = hook_method_call # 是否hook实例方法的调用
     def add_code(self,code_line,result_var=None,dependency_vars=None,
                  executed=True,**extra_info):
+        # result_var: 新变量名（每个变量对应的对象id不变，类似js的const）
+        # dependency_vars: 依赖的变量列表（可能会修改对象，但不会修改变量的对象id）
         if dependency_vars is None:
             dependency_vars = []
         self.codes.append(" "*(self.indent*INDENT)+code_line)
@@ -137,6 +104,10 @@ class ObjChain:
             extra_info["_internal"] = self._is_evaluating # _internal: 是否是执行其他生成代码时，递归生成的
         self.code_vars.append((result_var,dependency_vars,extra_info))
         self.code_executed.append(executed)
+    def remove_last_line(self): # 删除最后一行代码
+        self.codes.pop()
+        self.code_vars.pop()
+        self.code_executed.pop()
     def detect_dependency_vars(self,*iterables):
         # 自动检测依赖的变量，返回变量名的列表和未知对象的列表
         result = []; unknown = []
@@ -313,11 +284,11 @@ class ObjChain:
                            remove_export_type=True):
         return optimize_code(self.codes, self.code_vars, no_optimize_vars,
                              remove_internal, remove_export_type)
-    def eval_value(self,var_name=None,end_lineno=None):
+    def eval_value(self,var_name=None,start_lineno=None,end_lineno=None):
         # 一次性执行未执行过的代码（仅用于没有target_obj时）
         if end_lineno is None:end_lineno = len(self.codes)
 
-        exec(self.get_code(end_lineno = end_lineno, _only_not_executed = True),
+        exec(self.get_code(start_lineno, end_lineno, _only_not_executed = True),
              self.scope)
         if var_name is not None:
             return self.scope[var_name]
@@ -331,11 +302,13 @@ class ObjChain:
         self._is_evaluating = True # 记录当前正在执行其他代码
 
         new_code = self.codes[-1]
-        cur_idx = -1
+        cur_idx = len(self.codes) - 1
         if target_obj is not EMPTY_OBJ:
             # 一次执行完前面的全部代码
-            self.eval_value(end_lineno = cur_idx) # 不包括最后一行新加入的代码
+            self.eval_value(start_lineno = self._executed_idx,
+                            end_lineno = cur_idx) # 不包括最后一行新加入的代码
             self.code_executed[cur_idx] = True # 最后一行设为已执行过
+            self._executed_idx = cur_idx + 1
 
             # 实时操作对象，并返回操作结果
             if result_getter_func is not None:
@@ -377,10 +350,14 @@ def magic_meth_chained(fmt = None, use_newvar = True, indent_delta = 0,
     # default_fmt: 自动生成代码的格式，此时use_target_obj总是为True
     # no_exec: 不使用exec()执行动态生成的代码，用于提高性能
     # aug_assign: 是否为增强赋值语句（会同时将use_newvar设为False）
+    
     if not use_newvar and export:
-        raise ValueError("can't disable use_newvar while export is set to True")
+        raise ValueError("can't disable use_newvar while export is True")
     if aug_assign:
-        use_newvar=False
+        use_newvar=False # 自动将use_newvar设为False
+        if default_fmt or fmt is None:
+            raise ValueError(
+                "can't use default_fmt=True or fmt=None while aug_assign is True")
 
     def magic_meth_chained_inner(meth):
         if export:
@@ -389,14 +366,14 @@ def magic_meth_chained(fmt = None, use_newvar = True, indent_delta = 0,
         def override(self, *args, **kw):
             nonlocal use_exported_obj
             chain = self._ProxiedObj__chain
-            name = self._ProxiedObj__name
+            self_name = self._ProxiedObj__name
             meth_name = meth.__name__ # 方法名，仅default_fmt为True时使用
             target_obj = self._ProxiedObj__target_obj
             no_target_obj = target_obj is EMPTY_OBJ
 
             # ReprFormatProxy：自定义!r格式化的行为
             fmt_kw = {key:ReprFormatProxy(val,chain.get_repr) for key,val in kw.items()}
-            fmt_kw["_self"] = name
+            fmt_kw["_self"] = self_name
             if use_newvar:
                 new_var = chain.new_var(export=export) # 申请一个新变量名
                 fmt_kw["_var"] = new_var
@@ -411,22 +388,23 @@ def magic_meth_chained(fmt = None, use_newvar = True, indent_delta = 0,
                 chain.add_code(new_code, new_var, depend_vars, _export_type = export,
                                executed = not no_target_obj) # 加入新的一行代码
             elif default_fmt: # 自动生成格式
+                fmt_args = None
                 use_exported_obj = True # 此时use_exported_obj总是为True
                 if use_newvar:
                     new_code = "{} = {}.{}({})".format(
-                        new_var,name,meth_name,format_func_call(args,kw,chain.get_repr))
+                        new_var,self_name,meth_name,format_func_call(args,kw,chain.get_repr))
                 else:
                     new_code = "{}.{}({})".format(
-                        name,meth_name,format_func_call(args,kw,chain.get_repr))
+                        self_name,meth_name,format_func_call(args,kw,chain.get_repr))
                 chain.add_code(new_code, new_var, depend_vars, _export_type = export,
                                executed = not no_target_obj)
             else:
-                pass
+                new_code = fmt_args = None
 
             chain.indent += indent_delta # 变化缩进（备用）
 
-            getter_func = lambda:meth(target_obj,
-                *((unproxy_obj(arg) for arg in args) if use_exported_obj else args)) \
+            getter_func = (lambda:meth(target_obj,
+                *((unproxy_obj(arg) for arg in args) if use_exported_obj else args))) \
                 if no_exec and not no_target_obj else None # no_exec为True时，不使用关键字参数kw
 
             # 不使用use_exported_obj时，result总是为None
@@ -450,7 +428,20 @@ def magic_meth_chained(fmt = None, use_newvar = True, indent_delta = 0,
                             result,export_trivial_obj=self._ProxiedObj__export_trivial_obj)
             if aug_assign:
                 if result is target_obj:return self
-                # TODO: 增加id(result)改变的处理
+                else:
+                    result_var = chain.new_var() # 新变量的名称
+                    chain.scope[result_var] = result
+                    chain.remove_last_line() # 回退已生成的代码，重新加入
+                    fmt_kw["_self"] = result_var
+                    chain.add_code(f"{result_var} = {self_name}",result_var,[self_name])
+                    new_code = fmt.format(*fmt_args, **fmt_kw)
+                     # 需加入self_name，由于可能会修改self_name的对象
+                    chain.add_code(new_code, None, [result_var, self_name],
+                                   _export_type = export, executed = not no_target_obj)
+                    return proxyCls(type(result),self._ProxiedObj__chain,result_var)(
+                                    chain,result_var,result,
+                                    export_trivial_obj = \
+                                    self._ProxiedObj__export_trivial_obj)
             return None
 
         return override
@@ -519,11 +510,8 @@ class ProxiedObj:
 
     #@magic_meth_chained("{_var} = {_self}.{}")
     def __getattr__(self,attr):
-        if "_ProxiedObj__chain" not in object.\
-                __getattribute__(self,"__dict__"): # self尚未初始化
-            return object.__getattribute__(self,attr)
         if attr in NOCODE_EXPORT_ATTRS and self.__target_obj is not EMPTY_OBJ:
-            return getattr(self.__target_obj, attr) # 不留下代码的直接导出属性
+            return _getattr(self.__target_obj, attr) # 不留下代码的直接导出属性
 
         new_var=self.__chain.new_var()
         new_code = f"{new_var} = {self.__name}.{attr}"
@@ -532,7 +520,7 @@ class ProxiedObj:
 
         export = self.__chain.is_export_attr(attr, self.__name)
         result = self.__chain._get_new_targetobj(
-                self.__target_obj,new_var,lambda:getattr(self.__target_obj,attr),
+                self.__target_obj,new_var,lambda:_getattr(self.__target_obj,attr),
                 export = export) # 获取结果对象
         if export:
             return result
@@ -554,8 +542,7 @@ class ProxiedObj:
     def __repr__(self): return repr(self)
     @magic_meth_chained("{_var} = dir({_self})",export=True)
     def __dir__(self): return dir(self)
-    @magic_meth_chained("{_self}.{} = {!r}", False)
-    def __setattr_override(self,attr,value):self.attr=value
+    __setattr_override = magic_meth_chained("{_self}.{} = {!r}", False)(setattr)
     def __setattr__(self,attr,value): # 仅用于__no_self_attr
         dct = object.__getattribute__(self,"__dict__")
         if not dct.get("_ProxiedObj__no_self_attr",False):
@@ -567,6 +554,7 @@ class ProxiedObj:
         if object.__getattribute__(self,"__dict__").get(
                 "_ProxiedObj__no_self_attr",False) \
                 and not attr.startswith("_ProxiedObj"):
+            #return type(self).__getattr__(self,attr)
             raise AttributeError # 改用__getattr__
         return result
     def __new__(cls,*args,**kw):
@@ -761,6 +749,7 @@ def proxyCls(T=_EmptyTarget, chain=EMPTY_OBJ, fromvar=None):
 
 
 _isinstance = isinstance
+_getattr = getattr
 from pyobject.objproxy.builtin_hook import hook_builtins # pylint: disable=ungrouped-imports
 hook_builtins() # hook内置函数
 

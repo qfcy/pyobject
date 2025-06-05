@@ -1,7 +1,7 @@
 # 内置函数和部分标准库函数的hook
 import sys,builtins,_collections_abc,inspect
 import collections.abc as collections_abc
-from pyobject.objproxy import ProxiedObj,accept_raw_obj
+from pyobject.objproxy import ProxiedObj
 
 _range = type(range(0)) #range
 def range(*args):
@@ -65,11 +65,9 @@ def callable(obj):
     if _isinstance(obj, ProxiedObj):
         obj = obj._ProxiedObj__target_obj
     return _callable(obj)
-def getattr(*args,**kw):
+def getattr(*args):
     if _isinstance(args[1],ProxiedObj):
         args = (args[0], args[1]._ProxiedObj__target_obj, *args[2:])
-    if "name" in kw and _isinstance(kw["name"],ProxiedObj):
-        kw["name"] = kw["name"]._ProxiedObj__target_obj
     return _getattr(*args)
 
 _pre_check_methods = _collections_abc._check_methods
@@ -138,19 +136,3 @@ def hook_builtins():
     collections_abc._check_methods = _check_methods
     inspect.signature = signature
     inspect.getattr_static = getattr_static
-
-# 内置类型的修改（备用）
-class CustomStr(builtins.str):
-    __init__ = accept_raw_obj(builtins.str,lambda args:args[1:],
-                              process_ret=lambda ret:None)
-    __new__ = accept_raw_obj(builtins.str,lambda args:args[1:])
-
-class CustomInt(builtins.int):
-    __init__ = accept_raw_obj(builtins.int,lambda args:args[1:],
-                              process_ret=lambda ret:None)
-    __new__ = accept_raw_obj(builtins.int,lambda args:args[1:])
-
-class CustomBytes(builtins.bytes):
-    __init__ = accept_raw_obj(builtins.bytes,lambda args:args[1:],
-                              process_ret=lambda ret:None)
-    __new__ = accept_raw_obj(builtins.bytes,lambda args:args[1:])

@@ -320,7 +320,7 @@ unused_var = func(temp_var)
 本函数直接比较对象的指针，提高了效率。
 
 
-**`pyobject`当前版本**: 1.2.9.2
+**`pyobject`当前版本**: 1.3.0
 
 ## 更新日志:
 
@@ -647,7 +647,7 @@ Determine whether obj is in the sequence lst.
 Compared to the built-in Python call "obj in lst" that invokes the "==" operator (`__eq__`) multiple times, this function directly compares the pointers to improve efficiency.
 
 
-**Current Version of `pyobject`**: 1.2.9.2
+**Current Version of `pyobject`**: 1.3.0
 
 ## Change Log
 

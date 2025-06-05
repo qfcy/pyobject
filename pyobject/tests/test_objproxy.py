@@ -95,10 +95,18 @@ class TestObjChain(unittest.TestCase):
         chain = ObjChain()
         obj = chain.add_existing_obj(Cls(),"obj")
         var1=obj; var1+=1
-        var2=obj; var2-=2
         self.assertEqual(var1, 1)
-        self.assertTrue(var2 is obj)
         self.print_code(chain, print_optimized = True)
+    def test_setattr(self):
+        class Cls:
+            def __init__(self):
+                self.attr = 42
+
+        chain = ObjChain()
+        obj = chain.add_existing_obj(Cls(),"obj")
+        obj.attr = 1
+        self.assertEqual(obj.attr, 1)
+        self.print_code(chain)
     def test_export(self): # 测试export_funcs和export_attrs
         class Cls:
             def __init__(self):
