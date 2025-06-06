@@ -1,6 +1,5 @@
 import functools,itertools,types
 from pyobject import shortrepr
-from pyobject.objproxy.dynobj import DynObj
 from pyobject.objproxy.optimize import optimize_code
 from pyobject.objproxy.utils import *
 
@@ -51,7 +50,7 @@ def is_trivial_obj(obj): # 检查对象能否被repr()表示（即对象必须�
     if type(obj) not in TRIVIAL_TYPES: # 不使用isinstance（由于不能是基本类型子类）
         return False
     if type(obj) in (list, tuple, dict, set):
-        if isinstance(obj, dict):
+        if _isinstance(obj, dict):
             obj = itertools.chain(obj.keys(), obj.values())
         return all(is_trivial_obj(sub) for sub in obj)
     return True
@@ -74,7 +73,6 @@ class ObjChain:
                  hook_method_call = False):
         # ObjChain()的export_funcs和export_attrs作用于当前链的所有对象
         self.codes = []
-        self.indent = 0 # 代码缩进格数（暂未使用）
         self.scope = {} # 上次执行的命名空间
         self.export_funcs = {} # 哪些函数需要导出（键为对象的变量名，值为属性名的列表，属性名可用"."分隔）
         self.export_attrs = {} # 哪些属性需要导出（键为对象的变量名）
@@ -99,7 +97,7 @@ class ObjChain:
         # dependency_vars: 依赖的变量列表（可能会修改对象，但不会修改变量的对象id）
         if dependency_vars is None:
             dependency_vars = []
-        self.codes.append(" "*(self.indent*INDENT)+code_line)
+        self.codes.append(code_line)
         if "_internal" not in extra_info:
             extra_info["_internal"] = self._is_evaluating # _internal: 是否是执行其他生成代码时，递归生成的
         self.code_vars.append((result_var,dependency_vars,extra_info))
@@ -341,12 +339,11 @@ class ObjChain:
         self._is_evaluating = pre_is_evaluating
         return result # result须不为ProxiedObj类型
 
-def magic_meth_chained(fmt = None, use_newvar = True, indent_delta = 0,
-                       export = False, use_exported_obj = True, default_fmt = False,
+def magic_meth_chained(fmt = None, use_newvar = True, export = False,
+                       use_exported_obj = True, default_fmt = False,
                        no_exec = True, aug_assign = False):
     # fmt: 代码的格式，{_var}表示新变量，{_self}表示自身变量
     # use_newvar: 是否会生成新的返回值变量，为False时用于+=, -=等运算符
-    # indent_delta: 缩进的变化量。export: 是否返回ProxiedObj外的其他类型
     # default_fmt: 自动生成代码的格式，此时use_target_obj总是为True
     # no_exec: 不使用exec()执行动态生成的代码，用于提高性能
     # aug_assign: 是否为增强赋值语句（会同时将use_newvar设为False）
@@ -360,14 +357,14 @@ def magic_meth_chained(fmt = None, use_newvar = True, indent_delta = 0,
                 "can't use default_fmt=True or fmt=None while aug_assign is True")
 
     def magic_meth_chained_inner(meth):
+        meth_name = meth.__name__ # 方法名，仅default_fmt为True时使用
         if export:
-            DEFAULT_EXPORT_FUNCS.append(meth.__name__) # 自动生成常量DEFAULT_EXPORT_FUNCS
+            DEFAULT_EXPORT_FUNCS.append(meth_name) # 自动生成常量DEFAULT_EXPORT_FUNCS
         @functools.wraps(meth)
         def override(self, *args, **kw):
             nonlocal use_exported_obj
             chain = self._ProxiedObj__chain
             self_name = self._ProxiedObj__name
-            meth_name = meth.__name__ # 方法名，仅default_fmt为True时使用
             target_obj = self._ProxiedObj__target_obj
             no_target_obj = target_obj is EMPTY_OBJ
 
@@ -400,8 +397,6 @@ def magic_meth_chained(fmt = None, use_newvar = True, indent_delta = 0,
                                executed = not no_target_obj)
             else:
                 new_code = fmt_args = None
-
-            chain.indent += indent_delta # 变化缩进（备用）
 
             getter_func = (lambda:meth(target_obj,
                 *((unproxy_obj(arg) for arg in args) if use_exported_obj else args))) \
@@ -461,7 +456,7 @@ class ProxiedObj:
         self.__name=name
         self.__export_call=_export_call
         if not _export_call and self.__chain.hook_method_call \
-                and isinstance(target_obj,types.MethodType):
+                and _isinstance(target_obj,types.MethodType):
             obj = target_obj.__self__
             if id(obj) in self.__chain.proxies:
                 target_obj = types.MethodType(target_obj.__func__,
@@ -497,7 +492,7 @@ class ProxiedObj:
             self.__chain.add_exported_obj(result, new_var)
             return result # 直接返回结果，不继续返回ProxiedObj
 
-        if isinstance(self.__target_obj,type) and isinstance(result,self.__target_obj):
+        if _isinstance(self.__target_obj,type) and _isinstance(result,self.__target_obj):
             # 自身是类且result为自身的实例化对象，则实例使用类的导出函数、属性
             if self.__name in self.__chain.export_attrs:
                 self.__chain.export_attrs[new_var] = self.__chain.\
@@ -518,15 +513,14 @@ class ProxiedObj:
         self.__chain.add_code(new_code, new_var, [self.__name],
                               executed = self.__target_obj is not EMPTY_OBJ)
 
-        export = self.__chain.is_export_attr(attr, self.__name)
+        is_export = self.__chain.is_export_attr(attr, self.__name)
         result = self.__chain._get_new_targetobj(
                 self.__target_obj,new_var,lambda:_getattr(self.__target_obj,attr),
-                export = export) # 获取结果对象
-        if export:
+                export = is_export) # 获取结果对象
+        if is_export:
             return result
 
-        if self.__export_trivial_obj and is_trivial_obj(result)\
-                or self.__chain.is_export_attr(attr,self.__name):
+        if self.__export_trivial_obj and is_trivial_obj(result) or is_export:
             self.__chain.add_exported_obj(result, new_var)
             return result # 直接返回结果，不继续返回ProxiedObj
         else:
@@ -536,13 +530,15 @@ class ProxiedObj:
                             self.__chain,new_var,result,
                             self.__chain.is_export_func(attr,self.__name),
                             self.__export_trivial_obj)
-    @magic_meth_chained("{_var} = str({_self})",export=True)
-    def __str__(self): return str(self)
-    @magic_meth_chained("{_var} = repr({_self})",export=True)
-    def __repr__(self): return repr(self)
-    @magic_meth_chained("{_var} = dir({_self})",export=True)
-    def __dir__(self): return dir(self)
+
+    #@magic_meth_chained("{_var} = str({_self})",export=True)
+    #def __str__(self): return str(self)
+    # 优化函数调用开销
+    __str__ = magic_meth_chained("{_var} = str({_self})",export=True)(str)
+    __repr__ = magic_meth_chained("{_var} = repr({_self})",export=True)(repr)
+    __dir__ = magic_meth_chained("{_var} = dir({_self})",export=True)(dir)
     __setattr_override = magic_meth_chained("{_self}.{} = {!r}", False)(setattr)
+
     def __setattr__(self,attr,value): # 仅用于__no_self_attr
         dct = object.__getattribute__(self,"__dict__")
         if not dct.get("_ProxiedObj__no_self_attr",False):
@@ -665,48 +661,38 @@ class ProxiedObj:
     def __neg__(self): return -self
     @magic_meth_chained("{_var} = +{_self}")
     def __pos__(self): return +self
-    @magic_meth_chained("{_var} = abs({_self})")
-    def __abs__(self): return abs(self)
     @magic_meth_chained("{_var} = ~{_self}")
     def __invert__(self): return ~self
+    __abs__ = magic_meth_chained("{_var} = abs({_self})")(abs)
 
     # 容器/迭代器
-    @magic_meth_chained("{_var} = len({_self})",export=True)
-    def __len__(self): return len(self)
+    __len__ = magic_meth_chained("{_var} = len({_self})",export=True)(len)
     @magic_meth_chained("{_var} = {_self}[{!r}]")
     def __getitem__(self, key): return self[key]
     @magic_meth_chained("{_self}[{!r}] = {!r}", False)
     def __setitem__(self, key, value): self[key] = value
     @magic_meth_chained("del {_self}[{!r}]", False)
     def __delitem__(self, key): del self[key]
-    @magic_meth_chained("{_var} = reversed({_self})",export=True)
-    def __reversed__(self): return reversed(self)
     @magic_meth_chained("{_var} = {!r} in {_self}",export=True)
     def __contains__(self, item): return item in self
-    @magic_meth_chained("{_var} = iter({_self})",export=True)
-    def __iter__(self): return iter(self)
-    @magic_meth_chained("{_var} = next({_self})",export=True)
-    def __next__(self): return next(self)
+    __reversed__ = magic_meth_chained("{_var} = reversed({_self})",
+                                      export=True)(reversed)
+    __iter__ = magic_meth_chained("{_var} = iter({_self})",export=True)(iter)
+    __next__ = magic_meth_chained("{_var} = next({_self})",export=True)(next)
 
     # 类型转换
-    @magic_meth_chained("{_var} = int({_self})",export=True)
-    def __int__(self): return int(self)
-    @magic_meth_chained("{_var} = float({_self})",export=True)
-    def __float__(self): return float(self)
-    @magic_meth_chained("{_var} = complex({_self})",export=True)
-    def __complex__(self): return complex(self)
-    @magic_meth_chained("{_var} = round({_self}, {!r})",export=True)
-    def __round__(self, ndigits=None): return round(self, ndigits)
-    @magic_meth_chained("{_var} = bool({_self})",export=True)
-    def __bool__(self): return bool(self)
-    @magic_meth_chained("{_var} = hash({_self})",export=True)
-    def __hash__(self): return hash(self)
+    __int__ = magic_meth_chained("{_var} = int({_self})",export=True)(int)
+    __float__ = magic_meth_chained("{_var} = float({_self})",export=True)(float)
+    __complex__ = magic_meth_chained("{_var} = complex({_self})",
+                                     export=True)(complex)
+    __round__ = magic_meth_chained("{_var} = round({_self}, {!r})",
+                                   export=True)(round)
+    __bool__ = magic_meth_chained("{_var} = bool({_self})",export=True)(bool)
+    __hash__ = magic_meth_chained("{_var} = hash({_self})",export=True)(hash)
 
     # 上下文管理
-    #@magic_meth_chained("with {_self}:",False,1)
     @magic_meth_chained(default_fmt=True)
     def __enter__(self): return self.__enter__()
-    #@magic_meth_chained("",False,-1)
     @magic_meth_chained(default_fmt=True,export=True)
     def __exit__(self, exc_type, exc_value, traceback): 
         return self.__exit__(exc_type, exc_value, traceback)
@@ -737,7 +723,7 @@ def proxyCls(T=_EmptyTarget, chain=EMPTY_OBJ, fromvar=None):
                 else:
                     cls_ = chain.add_existing_obj(T,var,
                         f"# class {var}: {shortrepr(cls,repr_func=basic_repr)}")
-                if len(args) == 3 and isinstance(T,type):
+                if len(args) == 3 and _isinstance(T,type):
                     args=(args[0],tuple(unproxy_obj(cls) for cls in args[1]),args[2])
 
                 if kw:return cls_(*args,**kw)

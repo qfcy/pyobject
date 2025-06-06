@@ -8,7 +8,7 @@ except ImportError:
     sys.path.append(path) # 加入当前pyobject库所在的目录
     from pyobject import ObjChain, ProxiedObj
 
-def current_func_name(level = 0):
+def current_func_name(level = 0): # 获取当前函数名，便于调试输出
     frame = sys._getframe()
     for i in range(level + 1):
         if frame is None:return None

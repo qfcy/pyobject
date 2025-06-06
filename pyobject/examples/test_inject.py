@@ -7,7 +7,7 @@ except ImportError:
     from importlib._bootstrap import MAGIC_NUMBER
 
 MARK=b"#####MyPython####"
-TARGET='empty_cp37.pyc' # 需要用Python 3.7
+TARGET='empty_cp37.pyc' # 需Python 3.7
 
 def extract_file(filename):
     # 将py,pyc文件还原为Code对象
@@ -121,10 +121,10 @@ def spread_to_mod(modname,use_pycache=True):
     if use_pycache and file.endswith('.py') or file.endswith('.pyw'):
         # 获取目标文件位置
         splited=os.path.split(file)
-        os.makedirs(splited[0] + '\\__pycache__',exist_ok=True)
+        os.makedirs(splited[0] + '/__pycache__',exist_ok=True)
         pyc=os.path.splitext(splited[1])[0] + \
              '.cpython-%d%d' % (sys.version_info.major,sys.version_info.minor)
-        target=splited[0] + '\\__pycache__\\'+pyc+'.pyc'
+        target=splited[0] + '/__pycache__/'+pyc+'.pyc'
     else:target=None
     co=spread(file,pycfile=target)
     return co

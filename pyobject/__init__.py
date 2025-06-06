@@ -97,8 +97,8 @@ try:
                     "set_type_subclasses_by_cls"])
 except ImportError:warn("Failed to import pyobject.pyobj_extension.")
 try:
-    from pyobject.objproxy import DynObj,ObjChain,ProxiedObj
-    __all__.extend(["DynObj","ObjChain","ProxiedObj"])
+    from pyobject.objproxy import ObjChain,ProxiedObj,unproxy_obj
+    __all__.extend(["ObjChain","ProxiedObj","unproxy_obj"])
 except (ImportError, SyntaxError):
     warn("Failed to import pyobject.objproxy.") # Python 3.5及以下不支持f-string，无法使用objproxy库
 

@@ -324,6 +324,7 @@ unused_var = func(temp_var)
 
 ## 更新日志:
 
+2025-6-6(v1.3.0):性能优化，提升了pyobject.objproxy模块的性能。  
 2025-4-30(v1.2.9):改进和增强了子模块pyobject.objproxy，重命名子模块pyobject.code_为pyobject.code。  
 2025-3-31(v1.2.8):将pyobject.super_proxy重命名为pyobject.objproxy，并正式发布；修改了pyobject.pyobj_extension模块。  
 2025-3-6(v1.2.7):为pyobject.browser新增了`dir()`中不存在的类属性（如`__flags__`, `__mro__`），修改了pyobj_extension模块。  
@@ -651,6 +652,7 @@ Compared to the built-in Python call "obj in lst" that invokes the "==" operator
 
 ## Change Log
 
+2025-6-6(v1.3.0): Optimized the performance of the pyobject.objproxy module.  
 2025-4-30(v1.2.9): Improved and enhanced the sub-module `pyobject.objproxy`, and renamed the sub-module `pyobject.code_` to `pyobject.code`.  
 2025-3-31(v1.2.8): Renamed pyobject.super_proxy to pyobject.objproxy and officially released it; modified the pyobject.pyobj_extension module.  
 2025-3-6 (v1.2.7): Added support for special class attributes excluded from `dir()` (such as `__flags__`, `__mro__`) in pyobject.browser and modified the pyobj_extension module.  
