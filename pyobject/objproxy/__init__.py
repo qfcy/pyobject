@@ -545,6 +545,8 @@ class ProxiedObj:
             object.__setattr__(self,attr,value)
         else:
             self.__setattr_override(attr,value)
+    @magic_meth_chained("del {_self}{}", False)
+    def __delattr__(self, attr): self.__delattr__(attr)
     def __getattribute__(self,attr): # 仅用于__no_self_attr
         result = object.__getattribute__(self,attr)
         if object.__getattribute__(self,"__dict__").get(
