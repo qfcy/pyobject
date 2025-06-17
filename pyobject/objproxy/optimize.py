@@ -15,7 +15,7 @@ class Statement: # 图节点（一条语句）
         self.affects_cnt = 0 # 使用affect_cnt替代len(self.affects)，是由于变量可能重复出现，如func(var1, var1 ** 2)
         for var in dependency_vars:
             self.depends.add(graph.get_node(var))
-    def optimize_self(self, remove_internal=True, remove_export_type=True): # 如果自身是临时或未使用变量，则优化自身
+    def optimize_self(self, remove_internal_level=1, remove_export_type=True): # 如果自身是临时或未使用变量，则优化自身
         if not self.var or self.var in self.graph.no_optimize_vars:
             return
         # 只有一个影响语句时，将自身的值代入，否则直接删除自身
@@ -23,7 +23,8 @@ class Statement: # 图节点（一条语句）
             for affect in self.affects:
                 try:
                     affect.code = subst_var(affect.code, self.code) # 代入变量
-                except NotAssignmentError:return # 不是赋值语句（如import numpy as np）
+                except NotAssignmentError: # 不是赋值语句（如import numpy as np）
+                    return
                 affect.depends.remove(self)
                 affect.depends |= self.depends # 将自身的依赖合并到影响语句的依赖
                 self.merge_info_into(affect) # 合并自身的可合并信息
@@ -38,7 +39,8 @@ class Statement: # 图节点（一条语句）
                 self.code = trim_assign(self.code)
                 self.var = None
             except NotAssignmentError:pass # 不是赋值语句
-            if remove_internal and self.extra_info.get("_internal",False)\
+            if remove_internal_level >= 0 and\
+                    self.extra_info.get("_eval_level",0) > remove_internal_level\
                     or remove_export_type and self.extra_info.get("_export_type",False)\
                     or self.extra_info.get("_optional_stat",False):
                 for dep in self.depends:
@@ -88,9 +90,9 @@ class VarGraph:
             if stat.removed:
                 self._remove_statement(stat)
 
-    def optimize(self, remove_internal=True, remove_export_type=True): # 优化代码，可多次调用
+    def optimize(self, remove_internal_level=1, remove_export_type=True): # 优化代码，可多次调用
         for stat in self.statements:
-            stat.optimize_self(remove_internal,remove_export_type)
+            stat.optimize_self(remove_internal_level,remove_export_type)
         self.clear_removed_statements()
     def get_code(self):
         return "\n".join(stat.code for stat in self.statements if not stat.removed)
@@ -123,17 +125,17 @@ def unused_import_optimizer(graph):
     graph.clear_removed_statements()
 
 def optimize_code(codes, code_vars, no_optimize_vars=None,
-                  remove_internal=True, remove_export_type=True,
+                  remove_internal_level=1, remove_export_type=True,
                   optimize_imports=True):
     # no_optimize_vars: 不能移除的变量名的列表
-    # remove_internal: 移除执行代码本身时产生的内部代码
+    # remove_internal_level: 移除层数>=这个值的代码 (设为负数如-1则不移除)
     # remove_export_type: 移除无用的类型导出，如str(var)
     graph = VarGraph(codes,code_vars,no_optimize_vars)
     statement_cnt = len(graph.statements)
     if optimize_imports:
         import_optimizer(graph) # 避免__import__()的调用本身在后续被优化
     while True:
-        graph.optimize(remove_internal,remove_export_type)
+        graph.optimize(remove_internal_level,remove_export_type)
         #from pprint import pprint;pprint(graph.statements);print()
         if statement_cnt == len(graph.statements):
             break

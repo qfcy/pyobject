@@ -3,6 +3,7 @@ import random
 try:
     from pyobject import ObjChain, ProxiedObj
 except ImportError:
+    import sys,os
     path = __file__
     for i in range(3):
         path = os.path.split(path)[0]
@@ -11,7 +12,7 @@ except ImportError:
 
 REPEAT_TIMES = 20000
 
-def test_perf(use_objchain=True):
+def test_perf(use_objproxy=True):
     chain = ObjChain(export_trivial_obj=False)
     class Cls:
         def __init__(self, value=None):
@@ -22,7 +23,7 @@ def test_perf(use_objchain=True):
         def __add__(self, other):
             return Cls(other)
 
-    if use_objchain:
+    if use_objproxy:
         Cls = chain.add_existing_obj(Cls,"Cls")
 
     obj1, obj2 = Cls(1), Cls(42)
@@ -41,7 +42,7 @@ def test_perf(use_objchain=True):
             obj1, obj2 = obj2, new_obj
         elif op == 3:
             obj1.attr = obj1
-    print(f"use_objchain={use_objchain}: {perf_counter()-start:.9f}s")
+    print(f"use_objproxy={use_objproxy}: {perf_counter()-start:.9f}s")
 
 if __name__=="__main__":
     print(f"REPEAT_TIMES={REPEAT_TIMES}")

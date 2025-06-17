@@ -35,18 +35,21 @@ class TestObjChain(unittest.TestCase):
         self.print_code(chain)
     def test_no_target_obj(self):
         chain = ObjChain()
-        np_ = chain.new_object("import numpy as np","np",
-                              use_target_obj=False) # 需要numpy
-
-        arr = np_.array([1,2,3])
-        import numpy as np
-        real_arr = np.array([1,2,3])
-        self.assertEqual(str(arr),str(real_arr))
+        source = """class Cls:
+    def __init__(self,data):self.data=data
+    def __str__(self):return str(self.data)"""
+        scope = {}
+        exec(source,scope)
+        Cls = scope["Cls"]
+        obj = Cls("test")
+        Cls2 = chain.new_object(source,"Cls",use_target_obj=False)
+        obj2 = Cls2("test")
+        self.assertEqual(str(obj),str(obj2))
         self.print_code(chain)
     def test_mixed_target_obj(self): # 测试混合有、无target_obj属性
         class Cls_:
             def __init__(self,obj):
-                self.obj = obj
+                self.data = obj
 
         chain = ObjChain()
         Cls = chain.add_existing_obj(Cls_, "Cls")
@@ -55,7 +58,7 @@ class TestObjChain(unittest.TestCase):
         obj2 = Cls2()
         # 有target_obj模式
         obj = Cls(obj2)
-        self.assertTrue(chain.get_target(obj).obj is obj2)
+        self.assertEqual(chain.get_target(obj).data,obj2)
         self.print_code(chain)
     def test_isinstance(self):
         class Cls:pass
