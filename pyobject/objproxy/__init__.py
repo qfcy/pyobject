@@ -375,6 +375,7 @@ def magic_meth_chained(fmt = None, use_newvar = True, export = False,
             target_obj = self._ProxiedObj__target_obj
             no_target_obj = target_obj is EMPTY_OBJ
             use_exported_obj = self._ProxiedObj__use_exported_obj
+            export_trivial_obj = self._ProxiedObj__export_trivial_obj
 
             # ReprFormatProxy：自定义!r格式化的行为
             fmt_kw = {key:ReprFormatProxy(val,chain.get_repr) for key,val in kw.items()}
@@ -427,8 +428,8 @@ def magic_meth_chained(fmt = None, use_newvar = True, export = False,
                     result = chain.eval_value(new_var) # 逐行一次性执行代码，并返回结果
                     return result
             if use_newvar:
-                return proxyCls(type(result),self._ProxiedObj__chain,new_var)(chain,new_var,
-                            result,export_trivial_obj=self._ProxiedObj__export_trivial_obj)
+                return proxyCls(type(result),chain,new_var)(chain,new_var,
+                                result,export_trivial_obj=export_trivial_obj)
             if aug_assign:
                 if result is target_obj:return self
                 else: # 新值不是自身
@@ -441,10 +442,9 @@ def magic_meth_chained(fmt = None, use_newvar = True, export = False,
                      # 需加入self_name，由于可能会修改self_name的对象
                     chain.add_code(new_code, None, [result_var, self_name],
                                    _export_type = export, executed = not no_target_obj)
-                    return proxyCls(type(result),self._ProxiedObj__chain,result_var)(
+                    return proxyCls(type(result),chain,result_var)(
                                     chain,result_var,result,
-                                    export_trivial_obj = \
-                                    self._ProxiedObj__export_trivial_obj)
+                                    export_trivial_obj = export_trivial_obj)
             return None
 
         return override
@@ -476,70 +476,83 @@ class ProxiedObj:
         if target_obj is not EMPTY_OBJ:
             chain.proxies[id(target_obj)] = self
     def __call__(self,*args,**kw):
-        depend_vars = self.__chain._detect_var_and_add_obj((self,), args, kw.values())
-        new_var = self.__chain.new_var()
-        new_code = "{} = {}({})".format(
-            new_var, self.__name, format_func_call(args,kw,self.__chain.get_repr))
-        self.__chain.add_code(new_code, new_var, depend_vars, # 添加代码
-                              executed = self.__target_obj is not EMPTY_OBJ\
-                                         and not self.__export_call)
+        chain = self.__chain
+        self_name = self.__name
+        target_obj = self.__target_obj
+        export_call = self.__export_call
+        export_trivial_obj = self.__export_trivial_obj
+        use_exported_obj = self.__use_exported_obj
 
-        if self.__target_obj is EMPTY_OBJ:
-            result = self.__chain.eval_value(new_var)
+        depend_vars = chain._detect_var_and_add_obj((self,), args, kw.values())
+        new_var = chain.new_var()
+        new_code = "{} = {}({})".format(
+            new_var, self_name, format_func_call(args,kw,chain.get_repr))
+        chain.add_code(new_code, new_var, depend_vars, # 添加代码
+                       executed = target_obj is not EMPTY_OBJ and not export_call)
+
+        if target_obj is EMPTY_OBJ:
+            result = chain.eval_value(new_var)
         else:
-            if self.__use_exported_obj:
+            if use_exported_obj:
                 args = (unproxy_obj(obj) for obj in args)
                 kw = {key:unproxy_obj(val) for key,val in kw.items()}
             def _getter():
                 if kw:
-                    return self.__target_obj(*args,**kw)
+                    return target_obj(*args,**kw)
                 else:
-                    return self.__target_obj(*args) # 避免对不接收关键字参数的函数传递关键字
-            result = self.__chain._get_new_targetobj(self.__target_obj,new_var,_getter)
+                    return target_obj(*args) # 避免对不接收关键字参数的函数传递关键字
+            result = chain._get_new_targetobj(target_obj,new_var,_getter)
 
-        if self.__export_call or (self.__export_trivial_obj
-                                  and is_trivial_obj(result)):
-            self.__chain.add_exported_obj(result, new_var)
+        if export_call or export_trivial_obj and is_trivial_obj(result):
+            chain.add_exported_obj(result, new_var)
             return result # 直接返回结果，不继续返回ProxiedObj
 
-        if _isinstance(self.__target_obj,type) and _isinstance(result,self.__target_obj):
+        if _isinstance(target_obj,type) and _isinstance(result,target_obj):
             # 自身是类且result为自身的实例化对象，则实例使用类的导出函数、属性
-            if self.__name in self.__chain.export_attrs:
-                self.__chain.export_attrs[new_var] = self.__chain.\
-                                                     export_attrs[self.__name].copy()
-            if self.__name in self.__chain.export_funcs:
-                self.__chain.export_funcs[new_var] = self.__chain.\
-                                                     export_funcs[self.__name].copy()
-        return proxyCls(type(result),self.__chain,self.__name)(self.__chain,new_var,
-                                    result,export_trivial_obj=self.__export_trivial_obj)
+            if self_name in chain.export_attrs:
+                chain.export_attrs[new_var] = chain.export_attrs[self_name].copy()
+            if self_name in chain.export_funcs:
+                chain.export_funcs[new_var] = chain.export_funcs[self_name].copy()
+        return proxyCls(type(result),chain,self_name)(chain,new_var,
+                                    result,export_trivial_obj=export_trivial_obj)
 
+    def __getattribute__(self,attr):
+        if not attr.startswith("_ProxiedObj"):
+            return ProxiedObj.__getattr__(self,attr)
+        return object.__getattribute__(self,attr)
     #@magic_meth_chained("{_var} = {_self}.{}")
     def __getattr__(self,attr):
-        if attr in NOCODE_EXPORT_ATTRS and self.__target_obj is not EMPTY_OBJ:
-            return _getattr(self.__target_obj, attr) # 不留下代码的直接导出属性
+        chain = self.__chain
+        self_name = self.__name
+        target_obj = self.__target_obj
+        export_trivial_obj = self.__export_trivial_obj
+        use_exported_obj = self.__use_exported_obj
+
+        if attr in NOCODE_EXPORT_ATTRS and target_obj is not EMPTY_OBJ:
+            return _getattr(target_obj, attr) # 不记录代码的直接导出属性
 
         new_var=self.__chain.new_var()
-        new_code = f"{new_var} = {self.__name}.{attr}"
-        self.__chain.add_code(new_code, new_var, [self.__name],
-                              executed = self.__target_obj is not EMPTY_OBJ)
+        new_code = f"{new_var} = {self_name}.{attr}"
+        chain.add_code(new_code, new_var, [self_name],
+                       executed = target_obj is not EMPTY_OBJ)
 
-        is_export = self.__chain.is_export_attr(attr, self.__name)
-        result = self.__chain._get_new_targetobj(
-                self.__target_obj,new_var,lambda:_getattr(self.__target_obj,attr),
+        is_export = chain.is_export_attr(attr, self_name)
+        result = chain._get_new_targetobj(
+                target_obj,new_var,lambda:_getattr(target_obj,attr),
                 export = is_export) # 获取结果对象
         if is_export:
             return result
 
-        if self.__export_trivial_obj and is_trivial_obj(result) or is_export:
-            self.__chain.add_exported_obj(result, new_var)
+        if export_trivial_obj and is_trivial_obj(result) or is_export:
+            chain.add_exported_obj(result, new_var)
             return result # 直接返回结果，不继续返回ProxiedObj
         else:
-            self.__chain.update_exports(self.__name, attr, new_var)
+            chain.update_exports(self_name, attr, new_var)
 
-        return proxyCls(type(result),self.__chain,self.__name)(
-                            self.__chain,new_var,result,
-                            self.__chain.is_export_func(attr,self.__name),
-                            self.__export_trivial_obj,self.__use_exported_obj)
+        return proxyCls(type(result),chain,self_name)(
+                                    chain,new_var,result,
+                                    chain.is_export_func(attr,self_name),
+                                    export_trivial_obj,use_exported_obj)
     def __new__(cls,*args,**kw):
         if len(args) >= 3:
             target_obj = args[2]
